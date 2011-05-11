@@ -1,0 +1,8 @@
+name: ShopAds
+main: hpiz.ShopAds.ShopAds
+version: 0.0.1
+author: Hpiz
+commands:
+  ad:
+    description: Advertisement Creation Menu
+    usage: /<command> - Advertisement Creation Menu
