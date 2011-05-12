@@ -24,6 +24,7 @@ public class ShopAdsPlayerListener extends PlayerListener {
 
     public ShopAdsPlayerListener(ShopAds instance) {
         plugin = instance;
+        
     }
 
     //Insert Player related code he
