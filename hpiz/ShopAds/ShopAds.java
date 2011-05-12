@@ -25,6 +25,8 @@ import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * ShopAds for Bukkit
@@ -43,13 +45,21 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     private String name;
     Server server = getServer();
     private String shopname;
-    private String time;
+    private int time;
     private int maximumShops;
     private String key;
     private String[] message;
-    private File file = new File("plugins/ShopAds/config.yml");
-    private File dir = new File( "plugins/ShopAds");
+    private File config = new File("plugins/ShopAds/config.yml");
+    private File dir = new File("plugins/ShopAds/");
     private String[] ads;
+    private Calendar cal = Calendar.getInstance();
+    private Properties pr = new Properties();
+    private String constructedMessage;
+    public Date date = cal.getTime();
+    public Long serverStartTime = date.getTime();
+    
+
+    
     
     
     public void onDisable() {
@@ -59,64 +69,68 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
   
     public void onEnable() {
-
+        
         PluginManager pm = getServer().getPluginManager();
-        this.reload();
-        setupPermissions();
-    	setupIconomy();
-        server = getServer();
-    
-        // EXAMPLE: Custom code, here we just output some info so we can check all is well
+        try {
+            this.reload();
+                /*setupPermissions();
+                    setupIconomy();
+                server = getServer();
+            
+                // EXAMPLE: Custom code, here we just output some info so we can check all is well
+                
+               
+               
+               */
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+        }
+     
         
-       
-       
-      
         PluginDescriptionFile pdfFile = this.getDescription();
-        log.info( pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!" );
-        }
-    private void readShops (){
-        String fileName;
+        log.info( "[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " is enabled!" );
         
-        File[] listOfFiles = dir.listFiles(); 
-        for(int i=0;i<listOfFiles.length;i++){
-         if (listOfFiles[i].isFile()) 
-          {
-          fileName = listOfFiles[i].getName();
-             if (fileName.endsWith(".txt") || fileName.endsWith(".TXT"))
-             {
-                FileReader fr;
-                    try {
-                        fr = new FileReader(dir + fileName);
-                    } catch (FileNotFoundException ex) {
-                        log.info("[ShopAds] Failes to automatically load announcements");
-                        fr=null;
-                    }
-                BufferedReader br = new BufferedReader(fr);
-                    try {
-                        key=br.readLine();
-                    } catch (IOException ex) {
-                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                 
-            }
-        }
     }
+    
+    
+    private String readTimeLeft () throws FileNotFoundException, IOException{
+                double timeLeft;
+                String t;
+                t = constructedMessage.substring(0,constructedMessage.indexOf(" "));
+                
+                return t; 
+               
+                        
+                //int t = findTimeLeft (key);
+                
+                 
+            
+        
+    
+
     }
 
     
-     public void reload()
+
+    
+     public void reload() throws FileNotFoundException, IOException
     {
-    	if (file.exists())
+
+    	if (config.exists())
     	{
-            Properties pr = new Properties();
+            
             try
             {
-                FileInputStream in = new FileInputStream(file);
+                FileInputStream in = new FileInputStream(config);
                 pr.load(in);
-                FileReader fr = new FileReader("plugins/ShopAds/config.yml");
-                BufferedReader br = new BufferedReader(fr);
-                key = br.readLine();
-                log.info("[ShopAds] Config loaded");
+              
+                  log.info("[ShopAds] Config loaded");  
+                
+                
+                
+                
 
             }
             catch (IOException e)
@@ -133,11 +147,67 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         		dir.mkdir();
                       
         	}
+               this.makeConfig();
 
-    	    try
+    	    
+    	}
+        
+                      
+    }
+
+    @Override
+   public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args){
+        String[] action = args;
+        
+            if (sender instanceof Player) {
+
+                Player player = (Player) sender;
+               
+                if (commandLabel.equalsIgnoreCase("ad")) {
+                try {
+                    this.timeUpdater();
+                } catch (FileNotFoundException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                    if (action.length == 0){
+                    player.sendMessage("[ShopAds]");
+                    player.sendMessage("/ad [shopname] [number of cycles] [message] - Creates an advertisement for the desired shop and 6hr cycles");
+                    player.sendMessage("/ad rates - Returns the current daily rate");
+                    }
+                   // if (action[1].equalsIgnoreCase("rates")){
+                   //     player.sendMessage("[ShopAds] Current rates are ");
+                   // }
+             
+                    if (action.length >= 3){
+                        String playerName = player.getName();
+                        writeShop(playerName, action, player);
+                        
+                
+                       
+                            
+                    }
+                }
+            
+                if (commandLabel.equalsIgnoreCase("rate")){
+                    player.sendMessage("Current rate is: 15 Dollars for every 6 hours");
+                }
+         
+
+               
+            
+          
+        }
+            log.info("[ShopAds] Only players currently on the server can use this plugins functions!");
+            return true;
+    }
+    
+ private void makeConfig (){
+     try
     	    {
-                file.createNewFile();
-                log.info("[ShopAds] No config found, creating default config");
+                config.createNewFile();
+                
                  
                 try
                 {
@@ -145,7 +215,9 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
         			out.println("maxshops=1");
         			out.println("interval=120");
+                                out.println("cost=120");
         			out.close();
+                                log.info("[ShopAds] No config found, created default config");
         		}
                 catch (IOException e)
         		{
@@ -156,78 +228,8 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     	    {
                 log.info("[ShopAds] Error creating config file");
     	    }
-    	}
-        readShops();
-                      
-    }
-
-    @Override
-   public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args){
-        String[] action = args;
-        String constructedMessage;
-            if (sender instanceof Player) {
-
-                Player player = (Player) sender;
-                
-                if (commandLabel.equalsIgnoreCase("ad")) {
-                    
-                    if (action.length == 0){
-                    player.sendMessage("[ShopAds]");
-                    player.sendMessage("/ad [shopname] [time] [message] - Creates an advertisement for the desired shop and run-time");
-                    player.sendMessage("/ad rates - Returns the current daily rate");
-                    }
-                   // if (action[1].equalsIgnoreCase("rates")){
-                   //     player.sendMessage("[ShopAds] Current rates are ");
-                   // }
-             
-                    if (action.length >= 4){
-                        String playerName = player.getName();
-                        File shops = new File("plugins/ShopAds/" + playerName + ".txt");
-                        shopname = action[0];
-                        time = action[1].toString();
-                     
-                        int x=0;
-                        log.info(action[2]);
-                        if (isValidNumber(time, player)){
-                        constructedMessage = (time + " " + action[2]);
-                        for (int z=3; z<=((action.length)-1);z++){
-                          
-                            constructedMessage = (constructedMessage + " " + action[z]);
-                           }
-                     try 
-                            {
-                        if(!shops.exists()){
-                        try {
-                            shops.createNewFile();
-                            log.info("[ShopAds] No Shops file found for " + playerName + ", file created");
-                        } catch (IOException ex) {
-                            log.info("[ShopAds] There was a problem creating the shops file");
-                        }
-                        }
-                                
-                                PrintWriter out2 = new PrintWriter(new FileWriter("plugins/ShopAds/" + playerName + ".txt"));
-                        
-                                 out2.print(constructedMessage);
-                        
-                                out2.close();
-                             } catch (IOException ex) {
-                                                     log.info("[ShopAds] There was a problem writing to the shops file");
-                                                    }
-                            
-                            
-                        
-                        player.sendMessage("[ShopAds] Advertisement has been created for " + time + " days.");
-                    }
-                       
-                            
-                        
-                }
-                }
-            }
-
-                 return true;
-            }
-    
+     
+ }   
  private boolean isValidNumber(String T, Player p){
     int test;
      try{
@@ -252,7 +254,50 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
  
  }
  
-    
+ private void writeShop (String playerName, String[] action, Player player){
+     
+     
+     File shops = new File("plugins/ShopAds/" + playerName + ".txt");
+                        shopname = action[0];
+                        
+                        
+                        if (isValidNumber(action[1], player)){
+                        time = ((21600000) * (Integer.parseInt(action[1])));
+                        constructedMessage = (time + " " + action[2]);
+                        if (action.length >= 3){
+                        for (int z=3; z<=((action.length)-1);z++){
+                          
+                            constructedMessage = (constructedMessage + " " + action[z]);
+                        }
+                        }
+                     try 
+                            {
+                        if(!shops.exists()){
+                        try {
+                            shops.createNewFile();
+                            log.info("[ShopAds] No Shops file found for " + playerName + ", file created");
+                        } catch (IOException ex) {
+                            log.info("[ShopAds] There was a problem creating the shops file");
+                        }
+                        }
+                                
+                                PrintWriter out2 = new PrintWriter(new FileWriter("plugins/ShopAds/" + playerName + ".txt"));
+                        
+                                 out2.print(constructedMessage);
+                        
+                                out2.close();
+                             } catch (IOException ex) {
+                                                     log.info("[ShopAds] There was a problem writing to the shops file");
+                                                    }
+                            
+                            
+                        
+                        player.sendMessage("[ShopAds] Advertisement has been created for " + action[1] + " days.");
+ }
+                        else {
+                            player.sendMessage("You did not enter a valid number for cycles.");
+                        }
+ }
  public void setupPermissions() {
     	Plugin test = this.getServer().getPluginManager().getPlugin("Permissions");
 
@@ -279,16 +324,56 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     	}
     }
 
+    
+    
+private void timeUpdater() throws FileNotFoundException, IOException{
+            
+    Calendar calNow = Calendar.getInstance();
+    Long timeNow ;
+    Long timeLeft;
+    String left;
+    Date dateNow = calNow.getTime();
+            
+        File[] listOfFiles = dir.listFiles(); 
+        for(int i=0;i<listOfFiles.length;i++){ 
+              String fileName;
+              
+         if (listOfFiles[i].isFile()) 
+          {
+          
+          fileName = listOfFiles[i].getName();
+          
+             if (fileName.endsWith(".txt") || fileName.endsWith(".TXT"))
+             {
+            FileReader fr;
+           
+                fr = new FileReader(listOfFiles[i].getPath());
+                BufferedReader br = new BufferedReader(fr);
+                constructedMessage = br.readLine();
+                left = this.readTimeLeft();
+                timeLeft = Long.parseLong(left);  
+                timeNow = dateNow.getTime();
+                timeLeft = timeLeft - (timeNow - serverStartTime);
+                constructedMessage = (String.valueOf(timeLeft) + constructedMessage.substring(constructedMessage.indexOf(" "), (constructedMessage.length())));
+                PrintWriter out2 = new PrintWriter(new FileWriter(listOfFiles[i].getPath()));
+                        
+                                 out2.print(constructedMessage);
+                                 
+                                 out2.close();
+           
+             
+            
+        
+        
+            }
+        }
+    }
+  }       
+
+
+
+
+
+
+
 }
-
-      
-    
-
-  
-
-
-
-  
-      
-    
-
