@@ -8,24 +8,38 @@ package hpiz.ShopAds;
  *
  * @author Chris
  */
-import org.bukkit.Location;
+
+import java.util.logging.Logger;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerChatEvent;
-import org.bukkit.event.player.PlayerEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerListener;
-import org.bukkit.event.player.PlayerMoveEvent;
+
 
 /**
  * Handle events for all Player related events
  * @author <yourname>
  */
 public class ShopAdsPlayerListener extends PlayerListener {
-    private final ShopAds plugin;
+    
+    
+    private ShopAds plugin;
+    public boolean running = false;
+    private static final Logger log = Logger.getLogger("Minecraft");
 
     public ShopAdsPlayerListener(ShopAds instance) {
         plugin = instance;
-        
+
     }
+
+    @Override
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        plugin.log.info("playerJoined");
+
+               
+
+    }
+
+
 
     //Insert Player related code he
 }

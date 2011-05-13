@@ -2,10 +2,12 @@ package hpiz.ShopAds;
 
 /**
  *
- * @author Chris
+ * @author Hpiz
  */
 import com.iConomy.iConomy;
+import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
+import org.bukkit.plugin.Plugin;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,6 +30,9 @@ import org.bukkit.plugin.Plugin;
 import java.util.Calendar;
 import java.util.Date;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.event.Event;
+import org.bukkit.scheduler.BukkitScheduler;
 
 /**
  * ShopAds for Bukkit
@@ -36,16 +41,18 @@ import org.bukkit.ChatColor;
  */
 public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
+    private timerThread thread;
+    public static PermissionHandler permissionHandler;
+    private final ShopAdsPlayerListener playerListener = new ShopAdsPlayerListener(this);
     private final HashMap<Player, Boolean> debugees = new HashMap<Player, Boolean>();
     private boolean wantsToCreateAd = false;
     public static Permissions Permissions = null;
     public static iConomy iConomy = null;
-    static final Logger log = Logger.getLogger("Minecraft");
+    public static final Logger log = Logger.getLogger("Minecraft");
     private String commandSent;
     private String name;
-    Server server = getServer();
+    public Server server = getServer();
     private String shopname;
-    private int time;
     private int maximumShops;
     private String key;
     private String[] message;
@@ -57,18 +64,58 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     private String constructedMessage;
     public Date date = cal.getTime();
     public Long serverStartTime = date.getTime();
-    private boolean pluginState = false;
+    public boolean pluginState = false;
     private int lastMessage;
     private File[] listOfFiles = dir.listFiles();
     private String[] messages;
+    private boolean running = false;
+    public Player[] onlinePlayers;
+    public boolean random;
+    private boolean sendToAll;
+    private ChatColor color;
+    public String [] shopNames;
+    public Location [] shopLocs;
+    
 
     public void onDisable() {
     }
 
+    public void announce(int index) {
+        
+        
+        
+        announce(messages[index], shopNames[index]);
+    }
+    public ShopAds(){
+                super();
+
+        thread = new timerThread(this);
+    }
+    public void announce(String line, String shopName) {
+
+
+
+
+
+
+
+        if (sendToAll) {
+            getServer().broadcastMessage(line);
+        } else {
+            for (Player player : getServer().getOnlinePlayers()) {
+                
+                
+                    player.sendMessage(color.GOLD + "[" + shopName + "] " + color.GRAY + line);
+
+                
+            }
+        }
+    }
+
     public void onEnable() {
-
+        
         PluginManager pm = getServer().getPluginManager();
-
+        pm.registerEvent(Event.Type.PLAYER_JOIN, playerListener, Event.Priority.Normal, this);
         try {
             this.reload();
             /*setupPermissions();
@@ -85,18 +132,33 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         } catch (IOException ex) {
             Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
         }
+        BukkitScheduler scheduler = getServer().getScheduler();
+        Long interval = Long.valueOf(pr.getProperty("interval"));
+                
+        scheduler.scheduleAsyncRepeatingTask(this, thread, interval, interval);
         PluginDescriptionFile pdfFile = this.getDescription();
+        setupPermissions();
         log.info("[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " is enabled!");
         pluginState = true;
-        this.announceManager();
+        random = false;
+        sendToAll = false;
+
+
+
     }
 
-    private String readTimeLeft() throws FileNotFoundException, IOException {
-
-        double timeLeft;
+    private Long readTimeLeft() {
+        Calendar calNow = Calendar.getInstance();
+        Date dateNow = calNow.getTime();
+        Long timeLeft, timeMade, runTime, timeNow;
         String t;
-        t = constructedMessage.substring(0, constructedMessage.indexOf(" "));
-        return t;
+        timeNow = dateNow.getTime();
+        t = constructedMessage.substring(constructedMessage.indexOf("||") + 2, constructedMessage.indexOf(":") - 1);
+        timeMade = Long.parseLong(t);
+        t = constructedMessage.substring(constructedMessage.indexOf(":") + 1, constructedMessage.lastIndexOf("||") - 1);
+        runTime = Long.parseLong(t);
+        timeLeft = (timeNow - (timeMade + runTime));
+        return timeLeft;
     }
 
     public void reload() throws FileNotFoundException, IOException {
@@ -125,8 +187,15 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         messages[z] = temp;
 
     }
+    
+        public void setShopName (String temp, int z) {
+log.info(temp);
+        shopNames[z] = temp;
+
+    }
 
     public void loadAds() throws FileNotFoundException, IOException {
+
         int z = 0;
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName;
@@ -138,19 +207,27 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
             }
         }
         messages = new String[z];
+        shopNames = new String[z];
         z = 0;
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName;
+
             if (listOfFiles[i].isFile()) {
                 fileName = listOfFiles[i].getName();
                 if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
                     String temp;
+                       String temp2;
                     FileReader fr;
                     fr = new FileReader(listOfFiles[i].getPath());
                     BufferedReader br = new BufferedReader(fr);
                     temp = br.readLine();
-                    temp = temp.substring(temp.indexOf(" ") + 1, temp.length());
+                    temp2 = temp.substring(0, temp.indexOf("_"));
+                    
+                    
+                    temp = temp.substring(temp.lastIndexOf("||") + 2, temp.length());
+                    
                     this.setMessage(temp, z);
+                    this.setShopName(temp2, z);
 
                     z = z + 1;
                 }
@@ -165,7 +242,8 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         String[] action = args;
         if (sender instanceof Player) {
             Player player = (Player) sender;
-            if (commandLabel.equalsIgnoreCase("ad")) {
+
+            if (commandLabel.equalsIgnoreCase("ad")||commandLabel.equalsIgnoreCase("ads")) {
                 try {
                     this.timeUpdater();
                 } catch (FileNotFoundException ex) {
@@ -186,7 +264,8 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
                 if (action.length >= 3) {
                     String playerName = player.getName();
-                    writeShop(playerName, action, player);
+                    Location loc = player.getLocation();
+                    writeShop(playerName, action, player, loc);
                     return true;
                 }
 
@@ -240,13 +319,17 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         }
     }
 
-    private void writeShop(String playerName, String[] action, Player player) {
+    public void writeShop(String playerName, String[] action, Player player, Location loc) {
 
+        Calendar calNow = Calendar.getInstance();
+        Date dateNow = calNow.getTime();
+        String time;
         File shops = new File("plugins/ShopAds/" + playerName + ".txt");
         shopname = action[0];
         if (isValidNumber(action[1], player)) {
-            time = ((21600000) * (Integer.parseInt(action[1])));
-            constructedMessage = (time + " " + action[2]);
+            time = (String.valueOf(dateNow.getTime()) + ":" + (3600000) * (Integer.parseInt(action[1])));
+
+            constructedMessage = (shopname + "_" + String.valueOf(loc.getX()) + "," + String.valueOf(loc.getBlockY()) + "," + String.valueOf(loc.getBlockZ()) + "||" + time + "||" + action[2]);
             if (action.length >= 3) {
                 for (int z = 3; z <= ((action.length) - 1); z++) {
                     constructedMessage = (constructedMessage + " " + action[z]);
@@ -279,6 +362,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         if (this.Permissions == null) {
             if (test != null) {
                 this.Permissions = (Permissions) test;
+                log.info("[ShopAds] Hooked into permissions plugin");
             } else {
                 log.info("[ShopAds] Permission system not found. Disabling plugin.");
                 this.getServer().getPluginManager().disablePlugin(this);
@@ -299,13 +383,13 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         }
     }
 
-    private void timeUpdater() throws FileNotFoundException, IOException {
+    public void timeUpdater() throws FileNotFoundException, IOException {
 
         Calendar calNow = Calendar.getInstance();
+        Date dateNow = calNow.getTime();
         Long timeNow;
         Long timeLeft;
-        String left;
-        Date dateNow = calNow.getTime();
+
         File[] listOfFiles = dir.listFiles();
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName;
@@ -316,17 +400,24 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     fr = new FileReader(listOfFiles[i].getPath());
                     BufferedReader br = new BufferedReader(fr);
                     constructedMessage = br.readLine();
-                    left = this.readTimeLeft();
-                    timeLeft = Long.parseLong(left);
-                    timeNow = dateNow.getTime();
-                    timeLeft = timeLeft - (timeNow - serverStartTime);
-                    constructedMessage = (String.valueOf(timeLeft) + constructedMessage.substring(constructedMessage.indexOf(" "), (constructedMessage.length())));
-                    PrintWriter out2 = new PrintWriter(new FileWriter(listOfFiles[i].getPath()));
-                    out2.print(constructedMessage);
-                    out2.close();
+                    timeLeft = this.readTimeLeft();
+                    if (timeLeft <= 0) {
+                        listOfFiles[i].delete();
+
+
+                    }
                 }
             }
         }
+    }
+
+    public int getLastMessage() {
+        
+        return lastMessage;
+    }
+
+    public String[] getMessages() {
+        return messages;
     }
 
     public boolean pluginState() {
@@ -341,49 +432,37 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     }
 
     public void announceManager() {
-    
-    
-    for (int i=0; i<messages.length;i++){
-            try {
-                
+
+
+        for (int i = 0; i < messages.length; i++) {
+     
+
                 this.announce(i);
-                
-            } catch (InterruptedException ex) {
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-    }
-    }
 
-
-
-    public void announce(int lastMessage) throws InterruptedException {
-
-
-        Player[] onlinePlayers;
-        
-        onlinePlayers = getServer().getOnlinePlayers();
-        
-        
-        if(onlinePlayers.length==0){
-            return;
+          
         }
-        else{
-            while(pluginState){
-        onlinePlayers=this.getOnlinePlayers();
-        announceDelay.run(onlinePlayers, messages, lastMessage, pluginState);
-        }
-    
-    }
     }
 
     public int numberOfAds() {
         return ads.length;
     }
-    public Player [] getOnlinePlayers (){
+
+    public Player[] getOnlinePlayers() {
         return getServer().getOnlinePlayers();
     }
+
+    public int getMessagesLength() {
+        return messages.length;
+    }
+    /**   public void onPlayerJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+    log.info("someone joined");
+    Player[] onlinePlayers;
+    onlinePlayers = getOnlinePlayers();
+    if (!running) {
+    if (onlinePlayers.length == 1) {
+    announceDelay.run(onlinePlayers, messages, lastMessage, pluginState);
+    running=true;
+    }
+    }
+    }*/
 }
-
-
-
-
