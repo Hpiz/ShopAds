@@ -39,6 +39,13 @@ class timerThread extends Thread {
     @Override
     public void run() {
         try {
+            plugin.loadAds();
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        try {
             plugin.timeUpdater();
         } catch (FileNotFoundException ex) {
             Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);

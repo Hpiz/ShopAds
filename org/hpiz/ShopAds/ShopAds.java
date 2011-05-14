@@ -4,12 +4,14 @@ package org.hpiz.ShopAds;
  *
  * @author Hpiz
  */
-import com.iConomy.iConomy;
+import com.iConomy.*;
+import com.iConomy.system.Account;
+import com.iConomy.system.Holdings;
+
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -33,6 +35,10 @@ import java.util.Date;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.event.Event;
+import org.bukkit.event.Event.Priority;
+import org.bukkit.event.server.PluginDisableEvent;
+import org.bukkit.event.server.PluginEnableEvent;
+import org.bukkit.event.server.ServerListener;
 import org.bukkit.scheduler.BukkitScheduler;
 
 /**
@@ -43,13 +49,12 @@ import org.bukkit.scheduler.BukkitScheduler;
 public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
     private timerThread thread;
+    public iConomy iConomy = null;
     public static PermissionHandler permissionHandler;
     private final ShopAdsPlayerListener playerListener = new ShopAdsPlayerListener(this);
     private final HashMap<Player, Boolean> debugees = new HashMap<Player, Boolean>();
-    public static Permissions Permissions = null;
-    public static iConomy iConomy = null;
     public static final Logger log = Logger.getLogger("Minecraft");
-    public Server server = getServer();
+    public Server server;
     private String shopname;
     private File config = new File("plugins/ShopAds/config.yml");
     private File dir = new File("plugins/ShopAds/");
@@ -68,7 +73,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     private boolean sendToAll;
     private ChatColor color;
     public String[] shopNames;
-    public Location[] shopLocs;
+    public double[][] shopLocs;
     private File user = new File("plugins/ShopAds/user.dat");
 
     public void onDisable() {
@@ -130,7 +135,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 }
                 if (temp != null) {
                     if (temp.equalsIgnoreCase(name)) {
-                        
+
                         return true;
                     }
                 } else {
@@ -143,7 +148,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     }
 
     public int getNumberOfLines(File file) {
-  
+
         if (file.exists()) {
             FileReader fr = null;
             try {
@@ -157,24 +162,24 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
             int lineNumber = 0;
             int maxLines = 0;
 
-            
+
             while (!endOfFile) {
                 String temp = null;
                 try {
                     temp = br.readLine();
-                    
+
                 } catch (IOException ex) {
                     Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 if (temp != null) {
-                    
+
                     lineNumber++;
                 } else {
                     endOfFile = true;
                     maxLines = lineNumber;
                 }
             }
-            
+
 
             return maxLines;
         } else {
@@ -230,7 +235,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     public void removeStatus(String name) {
         if (user.exists()) {
             int lines = this.getNumberOfLines(user);
-            
+
             if (lines > 0) {
                 if (lines > 1) {
                     FileReader fr = null;
@@ -245,7 +250,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     int nameLine = 0;
                     String[] file;
                     maxLines = this.getNumberOfLines(user);
-                    
+
                     nameLine = this.getLineOfName(user, name);
                     file = new String[maxLines - 1];
                     for (int i = 0; i < maxLines; i++) {
@@ -279,33 +284,33 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     }
                     out.close();
                 } else {
-                    
-                     PrintWriter out = null;
+
+                    PrintWriter out = null;
                     try {
                         out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
                     } catch (IOException ex) {
                         Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                   
-                        out.println();
-                   
+
+                    out.println();
+
                     out.close();
                     return;
                 }
             }
         } else {
-                              
-                     PrintWriter out = null;
-                    try {
-                        out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
-                    } catch (IOException ex) {
-                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                   
-                        out.println();
-                   
-                    out.close();
-                    return;
+
+            PrintWriter out = null;
+            try {
+                out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
+            } catch (IOException ex) {
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            out.println();
+
+            out.close();
+            return;
         }
         return;
     }
@@ -328,7 +333,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 int nameLine = 0;
                 String[] file = null;
                 maxLines = this.getNumberOfLines(user);
-                
+
 
                 for (int i = 0; i < maxLines; i++) {
                     String temp = null;
@@ -338,16 +343,15 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     } catch (IOException ex) {
                         Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                   if(i==0){
-                    if(temp.isEmpty()){
-                        file = new String[maxLines];
-                       file[i]=player.getName();
-                   }
-                   else{
-                       file = new String[maxLines + 1];
-                    file[i] = temp;
-                   }
-                   }
+                    if (i == 0) {
+                        if (temp.isEmpty()) {
+                            file = new String[maxLines];
+                            file[i] = player.getName();
+                        } else {
+                            file = new String[maxLines + 1];
+                            file[i] = temp;
+                        }
+                    }
                 }
                 file[file.length - 1] = name;
 
@@ -391,9 +395,11 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
     @Override
     public void onEnable() {
-
+        server = getServer();
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.PLAYER_JOIN, playerListener, Event.Priority.Normal, this);
+        pm.registerEvent(Event.Type.PLUGIN_ENABLE, new server(this), Priority.Monitor, this);
+        pm.registerEvent(Event.Type.PLUGIN_DISABLE, new server(this), Priority.Monitor, this);
         try {
             this.reload();
             /*setupPermissions();
@@ -410,13 +416,16 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         } catch (IOException ex) {
             Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
         }
+
+
+        double cost = Double.parseDouble(pr.getProperty("cost"));
         BukkitScheduler scheduler = getServer().getScheduler();
         Long interval = Long.valueOf(pr.getProperty("interval"));
-        double cost = Double.parseDouble(pr.getProperty("cost"));
-
         scheduler.scheduleAsyncRepeatingTask(this, thread, interval, interval);
+
         PluginDescriptionFile pdfFile = this.getDescription();
         setupPermissions();
+        setupIconomy();
         log.info("[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " is enabled!");
         pluginState = true;
         random = false;
@@ -498,6 +507,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         }
         messages = new String[z];
         shopNames = new String[z];
+        shopLocs = new double[z][5];
         z = 0;
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName;
@@ -508,19 +518,36 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
                     String temp;
                     String temp2;
+                    String temp3;
                     FileReader fr;
                     fr = new FileReader(listOfFiles[i].getPath());
                     BufferedReader br = new BufferedReader(fr);
                     temp = br.readLine();
                     temp2 = temp.substring(0, temp.indexOf("_"));
+                    temp3 = temp.substring(temp.indexOf("_") + 1, temp.indexOf("||") - 1);
                     temp = temp.substring(temp.lastIndexOf("||") + 2, temp.length());
                     this.setMessage(temp, z);
                     this.setShopName(temp2, z);
+                    this.setShopLocation(temp3, z);
                     z = z + 1;
                 }
             }
         }
 
+    }
+
+    public void setShopLocation(String temp, int z) {
+        double[] location = new double[5];
+        location[0] = Double.parseDouble(temp.substring(0, temp.indexOf("/")));
+        location[1] = Double.parseDouble(temp.substring(temp.indexOf("/") + 1, temp.lastIndexOf("/")));
+        location[2] = Double.parseDouble(temp.substring(temp.lastIndexOf("/") + 1, temp.indexOf(",")));
+        location[3] = Double.parseDouble(temp.substring(temp.indexOf(",") + 1, temp.lastIndexOf(",")));
+        location[4] = Double.parseDouble(temp.substring(temp.lastIndexOf(",") + 1, temp.length()));
+
+        for (int i = 0; i < location.length; i++) {
+            shopLocs[z][i] = location[i];
+
+        }
     }
 
     public void writeUserOn(Player player) {
@@ -557,7 +584,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 } catch (IOException ex) {
                     Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                if (action.length == 0|| action[0].equalsIgnoreCase("?")) {
+                if (action.length == 0 || action[0].equalsIgnoreCase("?")) {
                     player.sendMessage(ChatColor.GOLD + "[ShopAds]");
                     player.sendMessage(ChatColor.GRAY + "/ad [shopname] [number of cycles] [message] - Creates an advertisement for the desired shop and 6hr cycles");
                     player.sendMessage(ChatColor.GRAY + "/ad rates - Returns the current daily rate");
@@ -572,26 +599,84 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     writeUserOff(player);
                 }
                 if (action[0].equalsIgnoreCase("rates")) {
-                    player.sendMessage(ChatColor.GRAY + "Current rate is: 15 Dollars for every 6 hours");
+                    if (Integer.parseInt(pr.getProperty("cost")) > 1) {
+                        player.sendMessage(ChatColor.GRAY + "Current rate is " + pr.getProperty("cost") + " " + com.iConomy.util.Constants.BankMajor.get(1) + " per hour");
+                    } else {
+                        player.sendMessage(ChatColor.GRAY + "Current rate is " + pr.getProperty("cost") + " " + com.iConomy.util.Constants.BankMajor.get(0) + " per hour");
+                    }
                     return true;
                 }
 
                 if (action.length >= 3) {
-                    String playerName = player.getName();
-                    Location loc = player.getLocation();
-                    writeShop(playerName, action, player, loc);
-                    return true;
+                    if (hasPermission(player, "sa.create")) {
+                        chargePlayer(player, Integer.parseInt(action[1]));
+                        String playerName = player.getName();
+                        Location loc = player.getLocation();
+                        writeShop(playerName, action, player, loc);
+                        try {
+                            loadAds();
+                        } catch (FileNotFoundException ex) {
+                            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                        } catch (IOException ex) {
+                            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                        return true;
+                    } else {
+
+                        player.sendMessage(ChatColor.RED + "[ShopAds] " + ChatColor.RED + "You do not have permission for that command");
+                        return true;
+
+                    }
                 }
 
 
-
                 return true;
+            }
+            if (commandLabel.equalsIgnoreCase("shop")) {
+                if (action.length == 1) {
+                    teleport(action[0], player);
+                } else {
+                    if (shopNames.length > 0) {
+                        String message = shopNames[0];
+                        for (int i = 1; i < shopNames.length; i++) {
+                            message = (message + ", " + shopNames[i]);
+                        }
+                        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The current shops available to teleport to are:");
+                        player.sendMessage(color.GRAY + message);
+                    } else {
+                        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The are no shops currently advertising");
+                    }
+                }
+
             }
         } else {
             log.info("[ShopAds] Only players currently on the server can use this plugins functions!");
 
         }
         return false;
+    }
+
+    public boolean hasPermission(Player player, String node) {
+        return permissionHandler.has(player, node);
+    }
+
+    private boolean hasAccount(String name) {
+        return (iConomy.Accounts.exists(name));
+    }
+
+    private void chargePlayer(Player player, int hours) {
+        if (hasAccount(player.getName())) {
+            Holdings balance = iConomy.getAccount(player.getName()).getHoldings();
+            if (balance.hasOver(hours * Double.parseDouble(pr.getProperty("cost")))) {
+                balance.subtract(hours * Double.parseDouble(pr.getProperty("cost")));
+                player.sendMessage(ChatColor.GOLD + "[ShopAds] " + ChatColor.GRAY + "You were charged " + iConomy.format(hours * Double.parseDouble(pr.getProperty("cost"))));
+            }
+            return;
+        } else {
+            player.sendMessage("[ShopAds] You do not have an account.");
+
+        }
+        return;
     }
 
     private void makeConfig() {
@@ -619,13 +704,13 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         try {
             test = Integer.parseInt(T);
         } catch (Exception e) {
-            p.sendMessage("[ShopAds] You must enter a number from 1 to 14 for the days value");
+            p.sendMessage("[ShopAds] You must enter a number from 1 to 36 for the hours value");
             test = 0;
         }
         if (test <= 0) {
             return false;
         } else {
-            if (test >= 15) {
+            if (test >= 36) {
                 return false;
             } else {
                 return true;
@@ -643,7 +728,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         if (isValidNumber(action[1], player)) {
             time = (String.valueOf(dateNow.getTime()) + ":" + (3600000) * (Integer.parseInt(action[1])));
 
-            constructedMessage = (shopname + "_" + String.valueOf(loc.getX()) + "," + String.valueOf(loc.getBlockY()) + "," + String.valueOf(loc.getBlockZ()) + "||" + time + "||" + action[2]);
+            constructedMessage = (shopname + "_" + String.valueOf(loc.getX()) + "/" + String.valueOf(loc.getBlockY()) + "/" + String.valueOf(loc.getBlockZ()) + "," + String.valueOf(loc.getPitch()) + "," + String.valueOf(loc.getYaw()) + "||" + time + "||" + action[2]);
             if (action.length >= 3) {
                 for (int z = 3; z <= ((action.length) - 1); z++) {
                     constructedMessage = (constructedMessage + " " + action[z]);
@@ -661,22 +746,23 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 PrintWriter out2 = new PrintWriter(new FileWriter("plugins/ShopAds/" + playerName + ".txt"));
                 out2.print(constructedMessage);
                 out2.close();
+                
+
             } catch (IOException ex) {
                 log.info("[ShopAds] There was a problem writing to the shops file");
             }
-            player.sendMessage(ChatColor.GOLD + "[ShopAds] " + ChatColor.GRAY + "Advertisement has been created for " + action[1] + " days.");
+            player.sendMessage(ChatColor.GOLD + "[ShopAds] " + ChatColor.GRAY + "Advertisement has been created for " + action[1] + " hours.");
         } else {
             player.sendMessage(ChatColor.RED + "[ShopAds] You did not enter a valid number for cycles.");
         }
     }
 
-    public void setupPermissions() {
+    private void setupPermissions() {
+        Plugin permissionsPlugin = this.getServer().getPluginManager().getPlugin("Permissions");
 
-        Plugin test = this.getServer().getPluginManager().getPlugin("Permissions");
-        if (this.Permissions == null) {
-            if (test != null) {
-                this.Permissions = (Permissions) test;
-                log.info("[ShopAds] Hooked into permissions plugin");
+        if (this.permissionHandler == null) {
+            if (permissionsPlugin != null) {
+                this.permissionHandler = ((Permissions) permissionsPlugin).getHandler();
             } else {
                 log.info("[ShopAds] Permission system not found. Disabling plugin.");
                 this.getServer().getPluginManager().disablePlugin(this);
@@ -690,8 +776,9 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         if (this.iConomy == null) {
             if (test != null) {
                 this.iConomy = (iConomy) test;
+
             } else {
-                log.info("[ShopAds] iConomy not found. Disabling plugin.");
+
                 this.getServer().getPluginManager().disablePlugin(this);
             }
         }
@@ -768,6 +855,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     public int getMessagesLength() {
         return messages.length;
     }
+
     /**   public void onPlayerJoin(org.bukkit.event.player.PlayerJoinEvent event) {
     log.info("someone joined");
     Player[] onlinePlayers;
@@ -779,4 +867,62 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     }
     }
     }*/
+    private void teleport(String name, Player player) {
+        if (shopExists(name) != -1) {
+            teleportToShop(shopExists(name), player);
+        }
+    }
+
+    public void teleportToShop(int shopIndex, Player player) {
+        float pitch = 0;
+
+        Location loc = new Location(player.getWorld(), shopLocs[shopIndex][0], shopLocs[shopIndex][1], shopLocs[shopIndex][2], Float.parseFloat(String.valueOf(shopLocs[shopIndex][3])), Float.parseFloat(String.valueOf(shopLocs[shopIndex][4])));
+        player.teleport(loc);
+        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You have been teleported to " + shopNames[shopIndex]);
+
+
+    }
+
+    private int shopExists(String name) {
+
+        for (int i = 0; i < shopNames.length; i++) {
+            if (shopNames[i].toLowerCase().startsWith(name.toLowerCase())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+}
+
+class server extends ServerListener {
+
+    private ShopAds plugin;
+
+    public server(ShopAds plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void onPluginDisable(PluginDisableEvent event) {
+        if (plugin.iConomy != null) {
+            if (event.getPlugin().getDescription().getName().equals("iConomy")) {
+                plugin.iConomy = null;
+                System.out.println("[ShopAds] un-hooked from iConomy.");
+            }
+        }
+    }
+
+    @Override
+    public void onPluginEnable(PluginEnableEvent event) {
+        if (plugin.iConomy == null) {
+            Plugin iConomy = plugin.getServer().getPluginManager().getPlugin("iConomy");
+
+            if (iConomy != null) {
+                if (iConomy.isEnabled() && iConomy.getClass().getName().equals("com.iConomy.iConomy")) {
+                    plugin.iConomy = (iConomy) iConomy;
+                    System.out.println("[ShopAds] hooked into iConomy.");
+                }
+            }
+        }
+    }
 }

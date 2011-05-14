@@ -10,6 +10,7 @@ package org.hpiz.ShopAds;
  */
 
 import java.util.logging.Logger;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerListener;
@@ -33,7 +34,7 @@ public class ShopAdsPlayerListener extends PlayerListener {
 
     @Override
     public void onPlayerJoin(PlayerJoinEvent event) {
-        
+                event.getPlayer().sendMessage(ChatColor.GOLD + "[ShopAds]" + ChatColor.GRAY + "Type /ad on to receive all the latest deals");
 
                
 

@@ -4,5 +4,8 @@ version: 0.0.9
 author: Hpiz
 commands:
   ad:
-    description: Advertisement Creation Menu
-    usage: /<command> - Advertisement Creation Menu
+    description:
+    usage:
+  shop:
+    description:
+    usage:
