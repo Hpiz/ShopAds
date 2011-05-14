@@ -7,8 +7,9 @@ package hpiz.ShopAds;
 import com.iConomy.iConomy;
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
-import org.bukkit.plugin.Plugin;
+
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -45,17 +46,11 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     public static PermissionHandler permissionHandler;
     private final ShopAdsPlayerListener playerListener = new ShopAdsPlayerListener(this);
     private final HashMap<Player, Boolean> debugees = new HashMap<Player, Boolean>();
-    private boolean wantsToCreateAd = false;
     public static Permissions Permissions = null;
     public static iConomy iConomy = null;
     public static final Logger log = Logger.getLogger("Minecraft");
-    private String commandSent;
-    private String name;
     public Server server = getServer();
     private String shopname;
-    private int maximumShops;
-    private String key;
-    private String[] message;
     private File config = new File("plugins/ShopAds/config.yml");
     private File dir = new File("plugins/ShopAds/");
     public String[] ads;
@@ -68,29 +63,30 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     private int lastMessage;
     private File[] listOfFiles = dir.listFiles();
     private String[] messages;
-    private boolean running = false;
     public Player[] onlinePlayers;
     public boolean random;
     private boolean sendToAll;
     private ChatColor color;
-    public String [] shopNames;
-    public Location [] shopLocs;
-    
+    public String[] shopNames;
+    public Location[] shopLocs;
+    private File user = new File("plugins/ShopAds/user.dat");
 
     public void onDisable() {
     }
 
     public void announce(int index) {
-        
-        
-        
+
+
+
         announce(messages[index], shopNames[index]);
     }
-    public ShopAds(){
-                super();
+
+    public ShopAds() {
+        super();
 
         thread = new timerThread(this);
     }
+
     public void announce(String line, String shopName) {
 
 
@@ -102,18 +98,300 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         if (sendToAll) {
             getServer().broadcastMessage(line);
         } else {
-            for (Player player : getServer().getOnlinePlayers()) {
-                
-                
-                    player.sendMessage(color.GOLD + "[" + shopName + "] " + color.GRAY + line);
+            Player[] player = this.getOnlinePlayers();
+            for (int i = 0; i < getServer().getOnlinePlayers().length; i++) {
 
-                
+
+                if (receiveStatus(player[i].getName())) {
+                    player[i].sendMessage(color.GOLD + "[" + shopName + "] " + color.GRAY + line);
+                }
+
             }
         }
     }
 
+    public boolean receiveStatus(String name) {
+        if (user.exists()) {
+            FileReader fr = null;
+            try {
+                fr = new FileReader(user.getPath());
+            } catch (FileNotFoundException ex) {
+
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            BufferedReader br = new BufferedReader(fr);
+
+            while (0 < 1) {
+                String temp = null;
+                try {
+                    temp = br.readLine();
+                } catch (IOException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                if (temp != null) {
+                    if (temp.equalsIgnoreCase(name)) {
+                        
+                        return true;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public int getNumberOfLines(File file) {
+  
+        if (file.exists()) {
+            FileReader fr = null;
+            try {
+                fr = new FileReader(file.getPath());
+            } catch (FileNotFoundException ex) {
+
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            BufferedReader br = new BufferedReader(fr);
+            boolean endOfFile = false;
+            int lineNumber = 0;
+            int maxLines = 0;
+
+            
+            while (!endOfFile) {
+                String temp = null;
+                try {
+                    temp = br.readLine();
+                    
+                } catch (IOException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                if (temp != null) {
+                    
+                    lineNumber++;
+                } else {
+                    endOfFile = true;
+                    maxLines = lineNumber;
+                }
+            }
+            
+
+            return maxLines;
+        } else {
+            return 0;
+        }
+
+
+    }
+
+    public int getLineOfName(File file, String name) {
+        if (file.exists()) {
+            FileReader fr = null;
+            try {
+                fr = new FileReader(file.getPath());
+            } catch (FileNotFoundException ex) {
+
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            BufferedReader br = new BufferedReader(fr);
+            boolean endOfFile = false;
+            int lineNumber = 0;
+            int maxLines = this.getNumberOfLines(file);
+            int nameLine = -1;
+
+            for (int i = 0; i < maxLines; i++) {
+                String temp = null;
+                try {
+                    temp = br.readLine();
+                } catch (IOException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                if (temp != null) {
+                    lineNumber++;
+
+                    if (temp.equalsIgnoreCase(name)) {
+                        nameLine = lineNumber;
+
+
+                    }
+                }
+                endOfFile = true;
+
+            }
+
+            return nameLine;
+        } else {
+            return 0;
+        }
+
+
+    }
+
+    public void removeStatus(String name) {
+        if (user.exists()) {
+            int lines = this.getNumberOfLines(user);
+            
+            if (lines > 0) {
+                if (lines > 1) {
+                    FileReader fr = null;
+                    try {
+                        fr = new FileReader(user.getPath());
+                    } catch (FileNotFoundException ex) {
+
+                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    BufferedReader br = new BufferedReader(fr);
+                    int maxLines = 0;
+                    int nameLine = 0;
+                    String[] file;
+                    maxLines = this.getNumberOfLines(user);
+                    
+                    nameLine = this.getLineOfName(user, name);
+                    file = new String[maxLines - 1];
+                    for (int i = 0; i < maxLines; i++) {
+                        String temp = null;
+                        try {
+                            temp = br.readLine();
+                        } catch (IOException ex) {
+                            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                        if (nameLine < maxLines) {
+                            if (i < nameLine - 1) {
+                                file[i] = temp;
+                            }
+                            if (i > nameLine - 1) {
+                                file[i - 1] = temp;
+                            }
+                        } else {
+                            if (i < nameLine - 1) {
+                                file[i] = temp;
+                            }
+                        }
+                    }
+                    PrintWriter out = null;
+                    try {
+                        out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
+                    } catch (IOException ex) {
+                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    for (int i = 0; i < file.length; i++) {
+                        out.println(file[i]);
+                    }
+                    out.close();
+                } else {
+                    
+                     PrintWriter out = null;
+                    try {
+                        out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
+                    } catch (IOException ex) {
+                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                   
+                        out.println();
+                   
+                    out.close();
+                    return;
+                }
+            }
+        } else {
+                              
+                     PrintWriter out = null;
+                    try {
+                        out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
+                    } catch (IOException ex) {
+                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                   
+                        out.println();
+                   
+                    out.close();
+                    return;
+        }
+        return;
+    }
+
+    public void addStatus(String name, Player player) {
+        if (user.exists()) {
+            if (!this.receiveStatus(name)) {
+
+                int lines = this.getNumberOfLines(user);
+
+                FileReader fr = null;
+                try {
+                    fr = new FileReader(user.getPath());
+                } catch (FileNotFoundException ex) {
+
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                BufferedReader br = new BufferedReader(fr);
+                int maxLines = 0;
+                int nameLine = 0;
+                String[] file = null;
+                maxLines = this.getNumberOfLines(user);
+                
+
+                for (int i = 0; i < maxLines; i++) {
+                    String temp = null;
+                    try {
+                        temp = br.readLine();
+
+                    } catch (IOException ex) {
+                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                   if(i==0){
+                    if(temp.isEmpty()){
+                        file = new String[maxLines];
+                       file[i]=player.getName();
+                   }
+                   else{
+                       file = new String[maxLines + 1];
+                    file[i] = temp;
+                   }
+                   }
+                }
+                file[file.length - 1] = name;
+
+
+                PrintWriter out = null;
+                try {
+                    out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
+                } catch (IOException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                for (int i = 0; i < file.length; i++) {
+                    out.println(file[i]);
+                }
+                out.close();
+                player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You will now receive advertisements");
+            } else {
+                player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You Are already receiving ads");
+            }
+
+        } else {
+            log.info("[ShopAds] No user.dat file found, creating one");
+            try {
+                user.createNewFile();
+                log.info("[ShopAds] User.dat created");
+            } catch (IOException ex) {
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            PrintWriter out = null;
+            try {
+                out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
+            } catch (IOException ex) {
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You Will now receive advertisements");
+            out.println(name);
+            out.close();
+
+            return;
+        }
+    }
+
+    @Override
     public void onEnable() {
-        
+
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvent(Event.Type.PLAYER_JOIN, playerListener, Event.Priority.Normal, this);
         try {
@@ -134,7 +412,8 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         }
         BukkitScheduler scheduler = getServer().getScheduler();
         Long interval = Long.valueOf(pr.getProperty("interval"));
-                
+        double cost = Double.parseDouble(pr.getProperty("cost"));
+
         scheduler.scheduleAsyncRepeatingTask(this, thread, interval, interval);
         PluginDescriptionFile pdfFile = this.getDescription();
         setupPermissions();
@@ -148,6 +427,13 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     }
 
     private Long readTimeLeft() {
+        try {
+            loadAds();
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+        }
         Calendar calNow = Calendar.getInstance();
         Date dateNow = calNow.getTime();
         Long timeLeft, timeMade, runTime, timeNow;
@@ -176,9 +462,13 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 dir.mkdir();
             }
             this.makeConfig();
+            FileInputStream in = new FileInputStream(config);
+            pr.load(in);
+            log.info("[ShopAds] Config loaded");
         }
 
         this.loadAds();
+        log.info("[ShopAds] Advertisements have been loaded!");
 
     }
 
@@ -187,9 +477,9 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         messages[z] = temp;
 
     }
-    
-        public void setShopName (String temp, int z) {
-log.info(temp);
+
+    public void setShopName(String temp, int z) {
+
         shopNames[z] = temp;
 
     }
@@ -214,26 +504,42 @@ log.info(temp);
 
             if (listOfFiles[i].isFile()) {
                 fileName = listOfFiles[i].getName();
+
                 if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
                     String temp;
-                       String temp2;
+                    String temp2;
                     FileReader fr;
                     fr = new FileReader(listOfFiles[i].getPath());
                     BufferedReader br = new BufferedReader(fr);
                     temp = br.readLine();
                     temp2 = temp.substring(0, temp.indexOf("_"));
-                    
-                    
                     temp = temp.substring(temp.lastIndexOf("||") + 2, temp.length());
-                    
                     this.setMessage(temp, z);
                     this.setShopName(temp2, z);
-
                     z = z + 1;
                 }
             }
         }
-        log.info("[ShopAds] Advertisements have been loaded!");
+
+    }
+
+    public void writeUserOn(Player player) {
+
+        this.addStatus(player.getName(), player);
+
+    }
+
+    public void writeUserOff(Player player) {
+        if (user.exists()) {
+            if (this.receiveStatus(player.getName())) {
+                removeStatus(player.getName());
+                player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You will no longer receive advertisements");
+                return;
+            }
+        }
+        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You weren't receiving any advertisements");
+
+
     }
 
     @Override
@@ -243,7 +549,7 @@ log.info(temp);
         if (sender instanceof Player) {
             Player player = (Player) sender;
 
-            if (commandLabel.equalsIgnoreCase("ad")||commandLabel.equalsIgnoreCase("ads")) {
+            if (commandLabel.equalsIgnoreCase("ad") || commandLabel.equalsIgnoreCase("ads")) {
                 try {
                     this.timeUpdater();
                 } catch (FileNotFoundException ex) {
@@ -251,13 +557,21 @@ log.info(temp);
                 } catch (IOException ex) {
                     Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                if (action.length == 0) {
+                if (action.length == 0|| action[0].equalsIgnoreCase("?")) {
                     player.sendMessage(ChatColor.GOLD + "[ShopAds]");
                     player.sendMessage(ChatColor.GRAY + "/ad [shopname] [number of cycles] [message] - Creates an advertisement for the desired shop and 6hr cycles");
                     player.sendMessage(ChatColor.GRAY + "/ad rates - Returns the current daily rate");
+                    player.sendMessage(ChatColor.GRAY + "/ad on - Start receiving ads");
+                    player.sendMessage(ChatColor.GRAY + "/ad off - Stop receiving ads");
                     return true;
                 }
-                if (action[1].equalsIgnoreCase("rates")) {
+                if (action[0].equalsIgnoreCase("on")) {
+                    writeUserOn(player);
+                }
+                if (action[0].equalsIgnoreCase("off")) {
+                    writeUserOff(player);
+                }
+                if (action[0].equalsIgnoreCase("rates")) {
                     player.sendMessage(ChatColor.GRAY + "Current rate is: 15 Dollars for every 6 hours");
                     return true;
                 }
@@ -412,7 +726,7 @@ log.info(temp);
     }
 
     public int getLastMessage() {
-        
+
         return lastMessage;
     }
 
@@ -435,11 +749,11 @@ log.info(temp);
 
 
         for (int i = 0; i < messages.length; i++) {
-     
 
-                this.announce(i);
 
-          
+            this.announce(i);
+
+
         }
     }
 

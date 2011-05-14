@@ -24,7 +24,7 @@ public class ShopAdsPlayerListener extends PlayerListener {
     
     private ShopAds plugin;
     public boolean running = false;
-    private static final Logger log = Logger.getLogger("Minecraft");
+
 
     public ShopAdsPlayerListener(ShopAds instance) {
         plugin = instance;
@@ -33,7 +33,7 @@ public class ShopAdsPlayerListener extends PlayerListener {
 
     @Override
     public void onPlayerJoin(PlayerJoinEvent event) {
-        plugin.log.info("playerJoined");
+        
 
                
 
