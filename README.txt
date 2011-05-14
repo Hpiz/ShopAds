@@ -1,1 +1,1 @@
-Test
+Place the jar file in your servers "plugins" folder.

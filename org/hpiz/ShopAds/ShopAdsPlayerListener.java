@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package hpiz.ShopAds;
+package org.hpiz.ShopAds;
 
 /**
  *
@@ -17,7 +17,7 @@ import org.bukkit.event.player.PlayerListener;
 
 /**
  * Handle events for all Player related events
- * @author <yourname>
+ * @author hpiz
  */
 public class ShopAdsPlayerListener extends PlayerListener {
     

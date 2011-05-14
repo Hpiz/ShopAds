@@ -1,4 +1,4 @@
-package hpiz.ShopAds;
+package org.hpiz.ShopAds;
 
 /**
  *

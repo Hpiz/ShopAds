@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package hpiz.ShopAds;
+package org.hpiz.ShopAds;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -13,7 +13,7 @@ import java.util.logging.Logger;
 /**
  * Thread which handles the announcing.
  *
- * @author Michael Hohl
+ * @author Hpiz
  */
 class timerThread extends Thread {
     /** Tool used for generating random numbers. */
