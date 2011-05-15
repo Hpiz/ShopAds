@@ -38,21 +38,25 @@ class timerThread extends Thread {
     /** The main method of the thread. */
     @Override
     public void run() {
-        try {
-            plugin.loadAds();
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        try {
-            plugin.timeUpdater();
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
-        }
+
         if (plugin.pluginState()) {
+            
+            try {
+                plugin.loadAds();
+            } catch (FileNotFoundException ex) {
+                Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IOException ex) {
+                Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
+           
+            
+            
+            
+            
+            
+            
+            
             if (plugin.random) {
                 lastAnnouncement = Math.abs(randomGenerator.nextInt()) % plugin.getMessagesLength();
             } else {
@@ -65,7 +69,7 @@ class timerThread extends Thread {
                 
                     plugin.announce(lastAnnouncement);
                 try {
-                    plugin.timeUpdater();
+                    plugin.timeUpdater(lastAnnouncement);
                 } catch (FileNotFoundException ex) {
                     Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (IOException ex) {

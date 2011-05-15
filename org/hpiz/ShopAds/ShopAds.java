@@ -74,6 +74,8 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     private ChatColor color;
     public String[] shopNames;
     public double[][] shopLocs;
+    private Long[] shopTimes;
+    private String[] shopFiles;
     private File user = new File("plugins/ShopAds/user.dat");
 
     public void onDisable() {
@@ -82,8 +84,10 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     public void announce(int index) {
 
 
-
+if(shopTimes[index]!=0){
         announce(messages[index], shopNames[index]);
+}
+return;
     }
 
     public ShopAds() {
@@ -475,7 +479,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
             pr.load(in);
             log.info("[ShopAds] Config loaded");
         }
-
+            
         this.loadAds();
         log.info("[ShopAds] Advertisements have been loaded!");
 
@@ -495,19 +499,13 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
     public void loadAds() throws FileNotFoundException, IOException {
 
-        int z = 0;
-        for (int i = 0; i < listOfFiles.length; i++) {
-            String fileName;
-            if (listOfFiles[i].isFile()) {
-                fileName = listOfFiles[i].getName();
-                if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
-                    z++;
-                }
-            }
-        }
+        int z = this.getNumberOfFiles() ;
+        
         messages = new String[z];
         shopNames = new String[z];
         shopLocs = new double[z][5];
+        shopTimes = new Long[z];
+        shopFiles = new String[z];
         z = 0;
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName;
@@ -516,24 +514,43 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 fileName = listOfFiles[i].getName();
 
                 if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
-                    String temp;
-                    String temp2;
-                    String temp3;
+
+
                     FileReader fr;
                     fr = new FileReader(listOfFiles[i].getPath());
                     BufferedReader br = new BufferedReader(fr);
+                    String temp;
                     temp = br.readLine();
+                    if (temp.equalsIgnoreCase("expired")){
+                       shopTimes[z]=Long.parseLong("0"); 
+                       shopNames[z]="expired";
+                    }
+                    else{
+                    String temp2;
+                    String temp3;
+                    String temp4;
                     temp2 = temp.substring(0, temp.indexOf("_"));
                     temp3 = temp.substring(temp.indexOf("_") + 1, temp.indexOf("||") - 1);
+                    temp4 = temp.substring(temp.indexOf("||") + 2, temp.lastIndexOf("||") - 1);
                     temp = temp.substring(temp.lastIndexOf("||") + 2, temp.length());
+                    shopFiles[z] = listOfFiles[i].getName();
                     this.setMessage(temp, z);
                     this.setShopName(temp2, z);
                     this.setShopLocation(temp3, z);
+                    this.setShopTime(temp4, z);
+                    }
                     z = z + 1;
                 }
             }
         }
 
+    }
+
+    public void setShopTime(String time, int index) {
+        Long t = Long.parseLong(time.substring(0, time.indexOf(":")));
+        Long duration = Long.parseLong(time.substring(time.indexOf(":") + 1, time.length()));
+        t = t + duration;
+        shopTimes[index] = t;
     }
 
     public void setShopLocation(String temp, int z) {
@@ -577,13 +594,6 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
             Player player = (Player) sender;
 
             if (commandLabel.equalsIgnoreCase("ad") || commandLabel.equalsIgnoreCase("ads")) {
-                try {
-                    this.timeUpdater();
-                } catch (FileNotFoundException ex) {
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (IOException ex) {
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                }
                 if (action.length == 0 || action[0].equalsIgnoreCase("?")) {
                     player.sendMessage(ChatColor.GOLD + "[ShopAds]");
                     player.sendMessage(ChatColor.GRAY + "/ad [shopname] [number of cycles] [message] - Creates an advertisement for the desired shop and 6hr cycles");
@@ -639,7 +649,9 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     if (shopNames.length > 0) {
                         String message = shopNames[0];
                         for (int i = 1; i < shopNames.length; i++) {
+                            if (!shopNames[i].equalsIgnoreCase("expired")){
                             message = (message + ", " + shopNames[i]);
+                            }
                         }
                         player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The current shops available to teleport to are:");
                         player.sendMessage(color.GRAY + message);
@@ -746,7 +758,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                 PrintWriter out2 = new PrintWriter(new FileWriter("plugins/ShopAds/" + playerName + ".txt"));
                 out2.print(constructedMessage);
                 out2.close();
-                
+
 
             } catch (IOException ex) {
                 log.info("[ShopAds] There was a problem writing to the shops file");
@@ -784,33 +796,33 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         }
     }
 
-    public void timeUpdater() throws FileNotFoundException, IOException {
-
+    public void timeUpdater(int index) throws FileNotFoundException, IOException {
+if (shopTimes[index]!=0){
         Calendar calNow = Calendar.getInstance();
         Date dateNow = calNow.getTime();
         Long timeNow;
-        Long timeLeft;
-
-        File[] listOfFiles = dir.listFiles();
-        for (int i = 0; i < listOfFiles.length; i++) {
-            String fileName;
-            if (listOfFiles[i].isFile()) {
-                fileName = listOfFiles[i].getName();
-                if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
-                    FileReader fr;
-                    fr = new FileReader(listOfFiles[i].getPath());
+        timeNow = dateNow.getTime();
+         FileReader fr;
+                    fr = new FileReader(dir + "/" +shopFiles[index]);
                     BufferedReader br = new BufferedReader(fr);
-                    constructedMessage = br.readLine();
-                    timeLeft = this.readTimeLeft();
-                    if (timeLeft <= 0) {
-                        listOfFiles[i].delete();
-
-
-                    }
-                }
-            }
+                    String temp;
+                    temp = br.readLine();
+        if (!temp.equalsIgnoreCase("expired")){
+        if (shopTimes[index] < timeNow) {
+            File d = new File(dir + "/" + shopFiles[index]);
+            log.info("[ShopAds] " + d.getName() +" has expired");
+            PrintWriter out = new PrintWriter (d);
+            out.println("expired");
+            out.close();
+            
+            
+            
         }
+        }
+        }
+        return;
     }
+        
 
     public int getLastMessage() {
 
@@ -892,6 +904,20 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         }
         return -1;
     }
+    public int getNumberOfFiles(){
+        int z=0;
+        for (int i = 0; i < listOfFiles.length; i++) {
+            String fileName;
+            if (listOfFiles[i].isFile()) {
+                fileName = listOfFiles[i].getName();
+                if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
+                    z++;
+                }
+            }
+        }
+        return z;
+    }
+    
 }
 
 class server extends ServerListener {
