@@ -15,9 +15,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -48,52 +50,48 @@ import org.bukkit.scheduler.BukkitScheduler;
  */
 public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
-    private timerThread thread;
-    public iConomy iConomy = null;
-    public static PermissionHandler permissionHandler;
-    private final ShopAdsPlayerListener playerListener = new ShopAdsPlayerListener(this);
-    private final HashMap<Player, Boolean> debugees = new HashMap<Player, Boolean>();
-    public static final Logger log = Logger.getLogger("Minecraft");
-    public Server server;
-    private String shopname;
-    private File config = new File("plugins/ShopAds/config.yml");
-    private File dir = new File("plugins/ShopAds/");
-    public String[] ads;
-    private Calendar cal = Calendar.getInstance();
-    private Properties pr = new Properties();
-    private String constructedMessage;
-    public Date date = cal.getTime();
-    public Long serverStartTime = date.getTime();
-    public boolean pluginState = false;
-    private int lastMessage;
-    private File[] listOfFiles = dir.listFiles();
-    private String[] messages;
+    private timerThread thread; //Thread that counts the interval
+    public iConomy iConomy = null; // iConomy object
+    public static PermissionHandler permissionHandler; // permissions object
+    public static final Logger log = Logger.getLogger("Minecraft"); // logging to console
+    public Server server; //Server object
+    private File config = new File("plugins/ShopAds/config.yml"); // Config File
+    private File dir = new File("plugins/ShopAds/"); //Plugin Directory
+    private File userdir = new File("plugins/ShopAds/players/"); //Advertisements Directory
+    private Properties pr = new Properties(); //Config Properties
+    private Properties ps = new Properties(); //User Properties
+    private Properties[] pa; //Ads
+    public boolean pluginState = false; //Plugin State (true:false)
+    private File[] listOfFiles = userdir.listFiles(); //List of files in the advertisements directory
     public Player[] onlinePlayers;
     public boolean random;
     private boolean sendToAll;
     private ChatColor color;
-    public String[] shopNames;
-    public double[][] shopLocs;
-    private Long[] shopTimes;
-    private String[] shopFiles;
+    private ShopAdsShop[] Shops;
     private File user = new File("plugins/ShopAds/user.dat");
-
-    public void onDisable() {
-    }
-
-    public void announce(int index) {
-
-
-if(shopTimes[index]!=0){
-        announce(messages[index], shopNames[index]);
-}
-return;
-    }
 
     public ShopAds() {
         super();
-
         thread = new timerThread(this);
+
+    }
+
+    public void onDisable() {
+        pluginState=false;
+    }
+
+    public void announce(int index) {
+        /**
+        log.info(String.valueOf(index));
+        log.info(String.valueOf(Shops.length));
+        log.info(Shops[index].getName());              
+         */
+        if (Shops[index] != null) {
+            if (!Shops[index].getName().equalsIgnoreCase("expired")) {
+                announce(Shops[index].getAd(), Shops[index].getName());
+            }
+        }
+        return;
     }
 
     public void announce(String line, String shopName) {
@@ -110,480 +108,147 @@ return;
             Player[] player = this.getOnlinePlayers();
             for (int i = 0; i < getServer().getOnlinePlayers().length; i++) {
 
-
-                if (receiveStatus(player[i].getName())) {
-                    player[i].sendMessage(color.GOLD + "[" + shopName + "] " + color.GRAY + line);
-                }
-
-            }
-        }
-    }
-
-    public boolean receiveStatus(String name) {
-        if (user.exists()) {
-            FileReader fr = null;
-            try {
-                fr = new FileReader(user.getPath());
-            } catch (FileNotFoundException ex) {
-
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            BufferedReader br = new BufferedReader(fr);
-
-            while (0 < 1) {
-                String temp = null;
-                try {
-                    temp = br.readLine();
-                } catch (IOException ex) {
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                if (temp != null) {
-                    if (temp.equalsIgnoreCase(name)) {
-
-                        return true;
+                if (ps.containsKey(player[i].getName())) {
+                    if (ps.getProperty(player[i].getName()).equalsIgnoreCase("on")) {
+                        player[i].sendMessage(color.GOLD + "[" + shopName + "] " + color.GRAY + line);
                     }
-                } else {
-                    return false;
                 }
             }
         }
-
-        return false;
-    }
-
-    public int getNumberOfLines(File file) {
-
-        if (file.exists()) {
-            FileReader fr = null;
-            try {
-                fr = new FileReader(file.getPath());
-            } catch (FileNotFoundException ex) {
-
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            BufferedReader br = new BufferedReader(fr);
-            boolean endOfFile = false;
-            int lineNumber = 0;
-            int maxLines = 0;
-
-
-            while (!endOfFile) {
-                String temp = null;
-                try {
-                    temp = br.readLine();
-
-                } catch (IOException ex) {
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                if (temp != null) {
-
-                    lineNumber++;
-                } else {
-                    endOfFile = true;
-                    maxLines = lineNumber;
-                }
-            }
-
-
-            return maxLines;
-        } else {
-            return 0;
-        }
-
-
-    }
-
-    public int getLineOfName(File file, String name) {
-        if (file.exists()) {
-            FileReader fr = null;
-            try {
-                fr = new FileReader(file.getPath());
-            } catch (FileNotFoundException ex) {
-
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            BufferedReader br = new BufferedReader(fr);
-            boolean endOfFile = false;
-            int lineNumber = 0;
-            int maxLines = this.getNumberOfLines(file);
-            int nameLine = -1;
-
-            for (int i = 0; i < maxLines; i++) {
-                String temp = null;
-                try {
-                    temp = br.readLine();
-                } catch (IOException ex) {
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                if (temp != null) {
-                    lineNumber++;
-
-                    if (temp.equalsIgnoreCase(name)) {
-                        nameLine = lineNumber;
-
-
-                    }
-                }
-                endOfFile = true;
-
-            }
-
-            return nameLine;
-        } else {
-            return 0;
-        }
-
-
-    }
-
-    public void removeStatus(String name) {
-        if (user.exists()) {
-            int lines = this.getNumberOfLines(user);
-
-            if (lines > 0) {
-                if (lines > 1) {
-                    FileReader fr = null;
-                    try {
-                        fr = new FileReader(user.getPath());
-                    } catch (FileNotFoundException ex) {
-
-                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                    BufferedReader br = new BufferedReader(fr);
-                    int maxLines = 0;
-                    int nameLine = 0;
-                    String[] file;
-                    maxLines = this.getNumberOfLines(user);
-
-                    nameLine = this.getLineOfName(user, name);
-                    file = new String[maxLines - 1];
-                    for (int i = 0; i < maxLines; i++) {
-                        String temp = null;
-                        try {
-                            temp = br.readLine();
-                        } catch (IOException ex) {
-                            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                        }
-                        if (nameLine < maxLines) {
-                            if (i < nameLine - 1) {
-                                file[i] = temp;
-                            }
-                            if (i > nameLine - 1) {
-                                file[i - 1] = temp;
-                            }
-                        } else {
-                            if (i < nameLine - 1) {
-                                file[i] = temp;
-                            }
-                        }
-                    }
-                    PrintWriter out = null;
-                    try {
-                        out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
-                    } catch (IOException ex) {
-                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                    for (int i = 0; i < file.length; i++) {
-                        out.println(file[i]);
-                    }
-                    out.close();
-                } else {
-
-                    PrintWriter out = null;
-                    try {
-                        out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
-                    } catch (IOException ex) {
-                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-
-                    out.println();
-
-                    out.close();
-                    return;
-                }
-            }
-        } else {
-
-            PrintWriter out = null;
-            try {
-                out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
-            } catch (IOException ex) {
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-            out.println();
-
-            out.close();
-            return;
-        }
-        return;
-    }
-
-    public void addStatus(String name, Player player) {
-        if (user.exists()) {
-            if (!this.receiveStatus(name)) {
-
-                int lines = this.getNumberOfLines(user);
-
-                FileReader fr = null;
-                try {
-                    fr = new FileReader(user.getPath());
-                } catch (FileNotFoundException ex) {
-
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                BufferedReader br = new BufferedReader(fr);
-                int maxLines = 0;
-                int nameLine = 0;
-                String[] file = null;
-                maxLines = this.getNumberOfLines(user);
-
-
-                for (int i = 0; i < maxLines; i++) {
-                    String temp = null;
-                    try {
-                        temp = br.readLine();
-
-                    } catch (IOException ex) {
-                        Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                    if (i == 0) {
-                        if (temp.isEmpty()) {
-                            file = new String[maxLines];
-                            file[i] = player.getName();
-                        } else {
-                            file = new String[maxLines + 1];
-                            file[i] = temp;
-                        }
-                    }
-                }
-                file[file.length - 1] = name;
-
-
-                PrintWriter out = null;
-                try {
-                    out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
-                } catch (IOException ex) {
-                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                for (int i = 0; i < file.length; i++) {
-                    out.println(file[i]);
-                }
-                out.close();
-                player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You will now receive advertisements");
-            } else {
-                player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You Are already receiving ads");
-            }
-
-        } else {
-            log.info("[ShopAds] No user.dat file found, creating one");
-            try {
-                user.createNewFile();
-                log.info("[ShopAds] User.dat created");
-            } catch (IOException ex) {
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            PrintWriter out = null;
-            try {
-                out = new PrintWriter(new FileWriter("plugins/ShopAds/user.dat"));
-            } catch (IOException ex) {
-                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You Will now receive advertisements");
-            out.println(name);
-            out.close();
-
-            return;
-        }
-    }
+    }   
 
     @Override
     public void onEnable() {
         server = getServer();
-        PluginManager pm = getServer().getPluginManager();
-        pm.registerEvent(Event.Type.PLAYER_JOIN, playerListener, Event.Priority.Normal, this);
-        pm.registerEvent(Event.Type.PLUGIN_ENABLE, new server(this), Priority.Monitor, this);
-        pm.registerEvent(Event.Type.PLUGIN_DISABLE, new server(this), Priority.Monitor, this);
-        try {
-            this.reload();
-            /*setupPermissions();
-            setupIconomy();
-            server = getServer();
-            
-            // EXAMPLE: Custom code, here we just output some info so we can check all is well
-            
-            
-            
-             */
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-
-        double cost = Double.parseDouble(pr.getProperty("cost"));
-        BukkitScheduler scheduler = getServer().getScheduler();
-        Long interval = Long.valueOf(pr.getProperty("interval"));
-        scheduler.scheduleAsyncRepeatingTask(this, thread, interval, interval);
-
         PluginDescriptionFile pdfFile = this.getDescription();
+        log.info("[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " loading.");
         setupPermissions();
         setupIconomy();
+        this.reload();
+        BukkitScheduler scheduler = getServer().getScheduler();
+        Long interval = Long.valueOf(pr.getProperty("interval"));
+        
+
         log.info("[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " is enabled!");
         pluginState = true;
         random = false;
         sendToAll = false;
-
-
-
+        scheduler.scheduleAsyncRepeatingTask(this, thread, interval, interval);
     }
 
-    private Long readTimeLeft() {
-        try {
-            loadAds();
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        Calendar calNow = Calendar.getInstance();
-        Date dateNow = calNow.getTime();
-        Long timeLeft, timeMade, runTime, timeNow;
-        String t;
-        timeNow = dateNow.getTime();
-        t = constructedMessage.substring(constructedMessage.indexOf("||") + 2, constructedMessage.indexOf(":") - 1);
-        timeMade = Long.parseLong(t);
-        t = constructedMessage.substring(constructedMessage.indexOf(":") + 1, constructedMessage.lastIndexOf("||") - 1);
-        runTime = Long.parseLong(t);
-        timeLeft = (timeNow - (timeMade + runTime));
-        return timeLeft;
-    }
-
-    public void reload() throws FileNotFoundException, IOException {
+    public void reload() {
 
         if (config.exists()) {
             try {
                 FileInputStream in = new FileInputStream(config);
                 pr.load(in);
-                log.info("[ShopAds] Config loaded");
+                log.info("[ShopAds] Config loaded!");
             } catch (IOException e) {
-                log.info("[ShopAds] There was an error reading the config");
+                log.info("[ShopAds] There was an error reading the config!");
             }
         } else {
             if (!dir.exists()) {
                 dir.mkdir();
             }
             this.makeConfig();
-            FileInputStream in = new FileInputStream(config);
-            pr.load(in);
-            log.info("[ShopAds] Config loaded");
+            FileInputStream in = null;
+            try {
+                in = new FileInputStream(config);
+            } catch (FileNotFoundException ex) {
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            try {
+                pr.load(in);
+            } catch (IOException ex) {
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            log.info("[ShopAds] Config loaded!");
         }
-            
-        this.loadAds();
+
+        this.loadShops();
         log.info("[ShopAds] Advertisements have been loaded!");
 
     }
 
-    public void setMessage(String temp, int z) {
+    public void loadShops() {
+        //log.info("Loading Shops");
+               
+        int z = this.getNumberOfShopFiles();
 
-        messages[z] = temp;
+       //  log.info(z + " shops found");
 
-    }
+        Shops = new ShopAdsShop[z];
+        pa = new Properties[z];
 
-    public void setShopName(String temp, int z) {
-
-        shopNames[z] = temp;
-
-    }
-
-    public void loadAds() throws FileNotFoundException, IOException {
-
-        int z = this.getNumberOfFiles() ;
-        
-        messages = new String[z];
-        shopNames = new String[z];
-        shopLocs = new double[z][5];
-        shopTimes = new Long[z];
-        shopFiles = new String[z];
         z = 0;
         for (int i = 0; i < listOfFiles.length; i++) {
-            String fileName;
+            if (z < this.getNumberOfShopFiles()) {
 
-            if (listOfFiles[i].isFile()) {
-                fileName = listOfFiles[i].getName();
+                String fileName;
+                if (listOfFiles[i].isFile()) {
 
-                if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
+                    fileName = listOfFiles[i].getName();
+                 //   log.info(fileName + " is a file");
+                    if (fileName.endsWith(".yml") || fileName.endsWith(".YML")) {
+                   //     log.info("The file ends with .yml");
+                        
+            try {
+                FileInputStream in = new FileInputStream(listOfFiles[i]);
+                pa[z] = new Properties();
+                pa[z].load(in);
+                Shops[z] = new ShopAdsShop(pa[z].getProperty("Name"),pa[z].getProperty("Message"), this.parseShopLocation(pa[z].getProperty("Location")) , Double.parseDouble(pa[z].getProperty("Ends")), listOfFiles[i]);
+                z++;
+              
+            } catch (IOException e) {
+ 
+            }
+        
+                      
+                                
+                            
 
-
-                    FileReader fr;
-                    fr = new FileReader(listOfFiles[i].getPath());
-                    BufferedReader br = new BufferedReader(fr);
-                    String temp;
-                    temp = br.readLine();
-                    if (temp.equalsIgnoreCase("expired")){
-                       shopTimes[z]=Long.parseLong("0"); 
-                       shopNames[z]="expired";
                     }
-                    else{
-                    String temp2;
-                    String temp3;
-                    String temp4;
-                    temp2 = temp.substring(0, temp.indexOf("_"));
-                    temp3 = temp.substring(temp.indexOf("_") + 1, temp.indexOf("||") - 1);
-                    temp4 = temp.substring(temp.indexOf("||") + 2, temp.lastIndexOf("||") - 1);
-                    temp = temp.substring(temp.lastIndexOf("||") + 2, temp.length());
-                    shopFiles[z] = listOfFiles[i].getName();
-                    this.setMessage(temp, z);
-                    this.setShopName(temp2, z);
-                    this.setShopLocation(temp3, z);
-                    this.setShopTime(temp4, z);
-                    }
-                    z = z + 1;
                 }
             }
         }
+    }
+
+    public void writeUsers() {
+        if (user.exists()) {
+            try {
+                FileOutputStream in = new FileOutputStream(user);
+                ps.store(in, "");
+
+
+
+            } catch (IOException e) {
+            }
+        }
+        this.loadUsers();
+    }
+
+    public void loadUsers() {
+        if (user.exists()) {
+            try {
+                FileInputStream in = new FileInputStream(user);
+                ps.load(in);
+
+
+            } catch (IOException e) {
+            }
+        }
+
 
     }
 
-    public void setShopTime(String time, int index) {
-        Long t = Long.parseLong(time.substring(0, time.indexOf(":")));
-        Long duration = Long.parseLong(time.substring(time.indexOf(":") + 1, time.length()));
-        t = t + duration;
-        shopTimes[index] = t;
-    }
-
-    public void setShopLocation(String temp, int z) {
+    public double[] parseShopLocation(String temp) {
         double[] location = new double[5];
         location[0] = Double.parseDouble(temp.substring(0, temp.indexOf("/")));
         location[1] = Double.parseDouble(temp.substring(temp.indexOf("/") + 1, temp.lastIndexOf("/")));
         location[2] = Double.parseDouble(temp.substring(temp.lastIndexOf("/") + 1, temp.indexOf(",")));
         location[3] = Double.parseDouble(temp.substring(temp.indexOf(",") + 1, temp.lastIndexOf(",")));
         location[4] = Double.parseDouble(temp.substring(temp.lastIndexOf(",") + 1, temp.length()));
-
-        for (int i = 0; i < location.length; i++) {
-            shopLocs[z][i] = location[i];
-
-        }
-    }
-
-    public void writeUserOn(Player player) {
-
-        this.addStatus(player.getName(), player);
-
-    }
-
-    public void writeUserOff(Player player) {
-        if (user.exists()) {
-            if (this.receiveStatus(player.getName())) {
-                removeStatus(player.getName());
-                player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You will no longer receive advertisements");
-                return;
-            }
-        }
-        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You weren't receiving any advertisements");
-
-
+        return location;
     }
 
     @Override
@@ -603,10 +268,29 @@ return;
                     return true;
                 }
                 if (action[0].equalsIgnoreCase("on")) {
-                    writeUserOn(player);
+                    if(ps.containsKey(player.getName())){
+                    if(ps.getProperty(player.getName()).equalsIgnoreCase("on")){
+                        player.sendMessage(ChatColor.GOLD + "[ShopAds]" + ChatColor.GRAY + "You were already receive ads");
+                        return true;
+                    }
+                    }
+                    
+                    ps.setProperty(player.getName(), "on");
+                    player.sendMessage(ChatColor.GOLD + "[ShopAds]" + ChatColor.GRAY + "You will now receive ads");
+                    this.writeUsers();
+                    log.info("[ShopAds] " + player.getName() + " turned on ads.");
+                    
                 }
                 if (action[0].equalsIgnoreCase("off")) {
-                    writeUserOff(player);
+                    if(!ps.containsKey(player.getName())||ps.getProperty(player.getName()).equalsIgnoreCase("off")){
+                        player.sendMessage(ChatColor.GOLD + "[ShopAds]" + ChatColor.GRAY + "You weren't receiving ads");
+                        return true;
+                    }else{
+                    ps.setProperty(player.getName(), "off");
+                    player.sendMessage(ChatColor.GOLD + "[ShopAds]" + ChatColor.GRAY + "You will no longer recieve ads");
+                    this.writeUsers();
+                    log.info("[ShopAds] " + player.getName() + " turned off ads.");
+                }
                 }
                 if (action[0].equalsIgnoreCase("rates")) {
                     if (Integer.parseInt(pr.getProperty("cost")) > 1) {
@@ -622,18 +306,19 @@ return;
                         chargePlayer(player, Integer.parseInt(action[1]));
                         String playerName = player.getName();
                         Location loc = player.getLocation();
-                        writeShop(playerName, action, player, loc);
                         try {
-                            loadAds();
+                            writeShops(playerName, action, player, loc);
+                            log.info("[ShopAds] " + player.getName() + " made a shop ad.");
                         } catch (FileNotFoundException ex) {
                             Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
-                        } catch (IOException ex) {
-                            Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                         }
+
+                        loadShops();
+
                         return true;
                     } else {
 
-                        player.sendMessage(ChatColor.RED + "[ShopAds] " + ChatColor.RED + "You do not have permission for that command");
+                        player.sendMessage(ChatColor.GOLD + "[ShopAds] " + ChatColor.RED + "You do not have permission for that command");
                         return true;
 
                     }
@@ -643,14 +328,17 @@ return;
                 return true;
             }
             if (commandLabel.equalsIgnoreCase("shop")) {
+                String message = null;
                 if (action.length == 1) {
                     teleport(action[0], player);
                 } else {
-                    if (shopNames.length > 0) {
-                        String message = shopNames[0];
-                        for (int i = 1; i < shopNames.length; i++) {
-                            if (!shopNames[i].equalsIgnoreCase("expired")){
-                            message = (message + ", " + shopNames[i]);
+                    if (Shops.length > 0) {
+                        if (!Shops[0].getName().equalsIgnoreCase("expired")) {
+                            message = Shops[0].getName();
+
+
+                            for (int i = 1; i < Shops.length; i++) {
+                                message = (message + ", " + Shops[i].getAd());
                             }
                         }
                         player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The current shops available to teleport to are:");
@@ -730,39 +418,42 @@ return;
         }
     }
 
-    public void writeShop(String playerName, String[] action, Player player, Location loc) {
+    public void writeShops(String playerName, String[] action, Player player, Location loc) throws FileNotFoundException {
+        if (this.isValidNumber(action[1], player)) {
+            if (!userdir.exists()) {
 
-        Calendar calNow = Calendar.getInstance();
-        Date dateNow = calNow.getTime();
-        String time;
-        File shops = new File("plugins/ShopAds/" + playerName + ".txt");
-        shopname = action[0];
-        if (isValidNumber(action[1], player)) {
-            time = (String.valueOf(dateNow.getTime()) + ":" + (3600000) * (Integer.parseInt(action[1])));
+                userdir.mkdir();
 
-            constructedMessage = (shopname + "_" + String.valueOf(loc.getX()) + "/" + String.valueOf(loc.getBlockY()) + "/" + String.valueOf(loc.getBlockZ()) + "," + String.valueOf(loc.getPitch()) + "," + String.valueOf(loc.getYaw()) + "||" + time + "||" + action[2]);
-            if (action.length >= 3) {
-                for (int z = 3; z <= ((action.length) - 1); z++) {
-                    constructedMessage = (constructedMessage + " " + action[z]);
+            }
+            String message = null;
+            Calendar calNow = Calendar.getInstance();
+            Date dateNow = calNow.getTime();
+            File file = new File("plugins/ShopAds/players/" + player.getName() + ".yml");
+            if (!file.exists()) {
+                try {
+                    file.createNewFile();
+                } catch (IOException ex) {
+                    Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
+            PrintWriter out = null;
             try {
-                if (!shops.exists()) {
-                    try {
-                        shops.createNewFile();
-                        log.info("[ShopAds] No Shops file found for " + playerName + ", file created");
-                    } catch (IOException ex) {
-                        log.info("[ShopAds] There was a problem creating the shops file");
-                    }
-                }
-                PrintWriter out2 = new PrintWriter(new FileWriter("plugins/ShopAds/" + playerName + ".txt"));
-                out2.print(constructedMessage);
-                out2.close();
-
-
+                out = new PrintWriter(new FileWriter(file));
+               // log.info("Writer initialized");
             } catch (IOException ex) {
-                log.info("[ShopAds] There was a problem writing to the shops file");
+                Logger.getLogger(ShopAds.class.getName()).log(Level.SEVERE, null, ex);
             }
+            out.println("Name=" + action[0]);
+          //  log.info("Printed: " + ("Name=" + action[0]));
+            out.println("Ends=" + (String.valueOf(dateNow.getTime()) + ((3600000.0) * (Long.parseLong(action[1])))));
+            out.println("Location=" + (loc.getX() + "/" + loc.getY() + "/" + loc.getZ() + "," + loc.getPitch() + "," + loc.getYaw()));
+            message = action[2];
+            for (int i = 3; i < action.length; i++) {
+                message = message + " " + action[i];
+            }
+            out.print("Message=" + message);
+            out.close();
+
             player.sendMessage(ChatColor.GOLD + "[ShopAds] " + ChatColor.GRAY + "Advertisement has been created for " + action[1] + " hours.");
         } else {
             player.sendMessage(ChatColor.RED + "[ShopAds] You did not enter a valid number for cycles.");
@@ -774,9 +465,10 @@ return;
 
         if (this.permissionHandler == null) {
             if (permissionsPlugin != null) {
+                log.info("[ShopAds] Permissions Plugin Found");
                 this.permissionHandler = ((Permissions) permissionsPlugin).getHandler();
             } else {
-                log.info("[ShopAds] Permission system not found. Disabling plugin.");
+                log.info("[ShopAds] Permission system not found. Disabling plugin");
                 this.getServer().getPluginManager().disablePlugin(this);
             }
         }
@@ -787,50 +479,38 @@ return;
         Plugin test = this.getServer().getPluginManager().getPlugin("iConomy");
         if (this.iConomy == null) {
             if (test != null) {
+                log.info("[ShopAds] Successfully hooked into iConomy");
                 this.iConomy = (iConomy) test;
 
             } else {
-
+                log.info("[ShopAds] iConomy NOT FOUND, disabling plugin");
                 this.getServer().getPluginManager().disablePlugin(this);
             }
         }
     }
 
     public void timeUpdater(int index) throws FileNotFoundException, IOException {
-if (shopTimes[index]!=0){
+
         Calendar calNow = Calendar.getInstance();
         Date dateNow = calNow.getTime();
         Long timeNow;
         timeNow = dateNow.getTime();
-         FileReader fr;
-                    fr = new FileReader(dir + "/" +shopFiles[index]);
-                    BufferedReader br = new BufferedReader(fr);
-                    String temp;
-                    temp = br.readLine();
-        if (!temp.equalsIgnoreCase("expired")){
-        if (shopTimes[index] < timeNow) {
-            File d = new File(dir + "/" + shopFiles[index]);
-            log.info("[ShopAds] " + d.getName() +" has expired");
-            PrintWriter out = new PrintWriter (d);
-            out.println("expired");
-            out.close();
-            
-            
-            
-        }
-        }
+        if (Shops.length > 0) {
+
+            if ((Shops[index].getTimeToEnd() - (timeNow / 60000)) < 0.0) {
+
+
+                Shops[index].setName("expired");
+                log.info("[ShopAds] " + Shops[index].getShopFile().getName() + " has expired");
+                PrintWriter out = new PrintWriter(Shops[index].getShopFile());
+                out.println("expired");
+                out.close();
+
+
+
+            }
         }
         return;
-    }
-        
-
-    public int getLastMessage() {
-
-        return lastMessage;
-    }
-
-    public String[] getMessages() {
-        return messages;
     }
 
     public boolean pluginState() {
@@ -844,111 +524,53 @@ if (shopTimes[index]!=0){
 
     }
 
-    public void announceManager() {
-
-
-        for (int i = 0; i < messages.length; i++) {
-
-
-            this.announce(i);
-
-
-        }
-    }
-
-    public int numberOfAds() {
-        return ads.length;
-    }
-
     public Player[] getOnlinePlayers() {
         return getServer().getOnlinePlayers();
     }
 
-    public int getMessagesLength() {
-        return messages.length;
+    public int getShopsLength() {
+        return Shops.length;
     }
 
-    /**   public void onPlayerJoin(org.bukkit.event.player.PlayerJoinEvent event) {
-    log.info("someone joined");
-    Player[] onlinePlayers;
-    onlinePlayers = getOnlinePlayers();
-    if (!running) {
-    if (onlinePlayers.length == 1) {
-    announceDelay.run(onlinePlayers, messages, lastMessage, pluginState);
-    running=true;
-    }
-    }
-    }*/
     private void teleport(String name, Player player) {
         if (shopExists(name) != -1) {
             teleportToShop(shopExists(name), player);
         }
     }
 
-    public void teleportToShop(int shopIndex, Player player) {
+    public void teleportToShop(int index, Player player) {
         float pitch = 0;
 
-        Location loc = new Location(player.getWorld(), shopLocs[shopIndex][0], shopLocs[shopIndex][1], shopLocs[shopIndex][2], Float.parseFloat(String.valueOf(shopLocs[shopIndex][3])), Float.parseFloat(String.valueOf(shopLocs[shopIndex][4])));
+        Location loc = new Location(player.getWorld(), Shops[index].getLocation(0), Shops[index].getLocation(1), Shops[index].getLocation(2), Float.parseFloat(String.valueOf(Shops[index].getLocation(4))), Float.parseFloat(String.valueOf(Shops[index].getLocation(3))));
         player.teleport(loc);
-        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You have been teleported to " + shopNames[shopIndex]);
+        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You have been teleported to " + Shops[index].getName());
 
 
     }
 
     private int shopExists(String name) {
 
-        for (int i = 0; i < shopNames.length; i++) {
-            if (shopNames[i].toLowerCase().startsWith(name.toLowerCase())) {
+        for (int i = 0; i < Shops.length; i++) {
+            if (Shops[i].getName().toLowerCase().startsWith(name.toLowerCase())) {
                 return i;
             }
         }
         return -1;
     }
-    public int getNumberOfFiles(){
-        int z=0;
+
+    public int getNumberOfShopFiles() {
+        int z = 0;
+       // log.info(String.valueOf(listOfFiles.length) + " files are in the players dir");
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName;
             if (listOfFiles[i].isFile()) {
                 fileName = listOfFiles[i].getName();
-                if (fileName.endsWith(".txt") || fileName.endsWith(".TXT")) {
+                if (fileName.endsWith(".yml") || fileName.endsWith(".YML")) {
                     z++;
                 }
             }
         }
         return z;
     }
-    
 }
 
-class server extends ServerListener {
-
-    private ShopAds plugin;
-
-    public server(ShopAds plugin) {
-        this.plugin = plugin;
-    }
-
-    @Override
-    public void onPluginDisable(PluginDisableEvent event) {
-        if (plugin.iConomy != null) {
-            if (event.getPlugin().getDescription().getName().equals("iConomy")) {
-                plugin.iConomy = null;
-                System.out.println("[ShopAds] un-hooked from iConomy.");
-            }
-        }
-    }
-
-    @Override
-    public void onPluginEnable(PluginEnableEvent event) {
-        if (plugin.iConomy == null) {
-            Plugin iConomy = plugin.getServer().getPluginManager().getPlugin("iConomy");
-
-            if (iConomy != null) {
-                if (iConomy.isEnabled() && iConomy.getClass().getName().equals("com.iConomy.iConomy")) {
-                    plugin.iConomy = (iConomy) iConomy;
-                    System.out.println("[ShopAds] hooked into iConomy.");
-                }
-            }
-        }
-    }
-}

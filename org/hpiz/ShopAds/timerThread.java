@@ -41,31 +41,26 @@ class timerThread extends Thread {
 
         if (plugin.pluginState()) {
             
-            try {
-                plugin.loadAds();
-            } catch (FileNotFoundException ex) {
-                Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IOException ex) {
-                Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            
+                      
+                plugin.loadShops();
+       
             
            
-            
-            
-            
+             
             
             
             
             
             if (plugin.random) {
-                lastAnnouncement = Math.abs(randomGenerator.nextInt()) % plugin.getMessagesLength();
+                lastAnnouncement = Math.abs(randomGenerator.nextInt()) % plugin.getShopsLength();
             } else {
-                if ((++lastAnnouncement) >= plugin.getMessagesLength()) {
+                if ((++lastAnnouncement) >= plugin.getShopsLength()) {
                     lastAnnouncement = 0;
                 }
             }
 
-            if (lastAnnouncement < plugin.getMessagesLength()) {
+            if (lastAnnouncement < plugin.getShopsLength()) {
                 
                     plugin.announce(lastAnnouncement);
                 try {
