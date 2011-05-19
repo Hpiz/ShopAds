@@ -44,6 +44,7 @@ class timerThread extends Thread {
             
                       
                 plugin.loadShops();
+                plugin.loadUsers();
        
             
            
