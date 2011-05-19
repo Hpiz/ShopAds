@@ -1,6 +1,6 @@
 name: ShopAds
 main: org.hpiz.ShopAds.ShopAds
-version: 1.22
+version: 1.25
 author: Hpiz
 commands:
   ad:
