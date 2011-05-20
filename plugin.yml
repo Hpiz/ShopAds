@@ -1,11 +1,13 @@
 name: ShopAds
 main: org.hpiz.ShopAds.ShopAds
-version: 1.25
+version: 1.26
 author: Hpiz
 commands:
-  ad:
-    description:
+  ads:
+    description: Control creation and receiving of ad
     usage:
-  shop:
-    description:
+    aliases: ad
+  shops:
+    description: Actions for current shops
     usage:
+    aliases: shop
