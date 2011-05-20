@@ -4,6 +4,8 @@ package org.hpiz.ShopAds;
  *
  * @author Hpiz
  */
+import com.earth2me.essentials.Essentials;
+import com.earth2me.essentials.User;
 import com.iConomy.*;
 import com.iConomy.system.Holdings;
 
@@ -41,6 +43,7 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
 
     private timerThread thread; //Thread that counts the interval
     public iConomy iConomy = null; // iConomy object
+    public Essentials essentials; // iConomy object
     public static PermissionHandler permissionHandler; // permissions object
     public static final Logger log = Logger.getLogger("Minecraft"); // logging to console
     public Server server; //Server object
@@ -70,14 +73,18 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     }
 
     public void announce(int index) {
-/**
+        /**
         log.info(String.valueOf(index));
         log.info(String.valueOf(Shops.length));
         log.info(Shops[index].getName());
-*/
+         */
         if (Shops[index] != null) {
             if (!Shops[index].getName().equalsIgnoreCase("expired")) {
-                announce(Shops[index].getAd(), Shops[index].getName());
+                if (Shops[index].getAd() != null) {
+                    announce(Shops[index].getAd(), Shops[index].getName());
+                }
+            } else {
+                thread.runNextItem(index);
             }
         }
         return;
@@ -113,9 +120,11 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         log.info("[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " loading.");
         setupPermissions();
         setupIconomy();
+
         this.reload();
         BukkitScheduler scheduler = getServer().getScheduler();
         Long interval = (Long.valueOf(pr.getProperty("announceInterval")) * 25);
+
 
 
         log.info("[" + pdfFile.getName() + "]" + " version " + pdfFile.getVersion() + " is enabled!");
@@ -247,10 +256,12 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
             if (commandLabel.equalsIgnoreCase("ad") || commandLabel.equalsIgnoreCase("ads")) {
                 if (action.length == 0 || action[0].equalsIgnoreCase("?")) {
                     player.sendMessage(ChatColor.GOLD + "[ShopAds]");
-                    player.sendMessage(ChatColor.GRAY + "/ad [shopname] [number of hrs] [message] - Creates an advertisement for the desired shop and hrs to run");
+                    player.sendMessage(ChatColor.GRAY + "/ad create [shopname] [number of hrs] [message]");
+                    player.sendMessage(ChatColor.GRAY + "/ad delete - Stop your currently running ad");
                     player.sendMessage(ChatColor.GRAY + "/ad rates - Returns the current daily rate");
                     player.sendMessage(ChatColor.GRAY + "/ad on - Start receiving ads");
                     player.sendMessage(ChatColor.GRAY + "/ad off - Stop receiving ads");
+                    player.sendMessage(ChatColor.GRAY + "/shop(s) - List shops available to tp");
                     return true;
                 }
                 if (action[0].equalsIgnoreCase("on")) {
@@ -286,7 +297,13 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                     return true;
                 }
 
-                if (action.length >= 3) {
+                if (action[0].equalsIgnoreCase("create")) {
+                    String[] temp = new String[action.length - 1];
+                    for (int i = 0; i < temp.length; i++) {
+                        temp[i] = action[i + 1];
+                    }
+                    action = new String[temp.length];
+                    action = temp;
                     if (hasPermission(player, "sa.create")) {
                         if (chargePlayer(player, Integer.parseInt(action[1]))) {
                             String playerName = player.getName();
@@ -308,34 +325,49 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
                         return true;
                     }
                 }
-                return true;
-            }
-            if (commandLabel.equalsIgnoreCase("shop")) {
-                String message = null;
-                if (action.length == 1) {
-                    teleport(action[0], player);
-                } else {
-                    if (Shops.length > 0) {
-                        if (!Shops[0].getName().equalsIgnoreCase("expired")) {
-                            message = Shops[0].getName();
-                            for (int i = 1; i < Shops.length; i++) {
-                                message = (message + ", " + Shops[i].getAd());
-                            }
-                        }
-                        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The current shops available to teleport to are:");
-                        player.sendMessage(color.GRAY + message);
-                    } else {
-                        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The are no shops currently advertising");
-                    }
+
+                if (action[0].equalsIgnoreCase("yes") || action[0].equalsIgnoreCase("y")) {
+                    return true;
                 }
 
-            }
-        } else {
-            log.info("[ShopAds] Only players currently on the server can use this plugins functions!");
+                if (action[0].equalsIgnoreCase("no") || action[0].equalsIgnoreCase("n")) {
+                    return true;
+                }
 
+                if (action[0].equalsIgnoreCase("delete") || action[0].equalsIgnoreCase("del")) {
+                    player.sendMessage(ChatColor.GRAY + "Not yet implemented");
+                    return true;
+                }
+            }
+                if (commandLabel.equalsIgnoreCase("shop") || commandLabel.equalsIgnoreCase("shops")) {
+                    String message = null;
+                    if (action.length == 1) {
+                        teleport(action[0], player);
+                    } else {
+                        if (Shops.length > 0) {
+                            if (!Shops[0].getName().equalsIgnoreCase("expired")) {
+                                message = Shops[0].getName();
+                                for (int i = 1; i < Shops.length; i++) {
+                                    message = (message + ", " + Shops[i].getAd());
+                                }
+                            }
+                            player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The current shops available to teleport to are:");
+                            player.sendMessage(color.GRAY + message);
+                        } else {
+                            player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "The are no shops currently advertising");
+                        }
+                    }
+
+                }
+            } else {
+                log.info("[ShopAds] Only players currently on the server can use this plugins functions!");
+
+            }
+            
+            return false;
         }
-        return false;
-    }
+
+    
 
     public boolean hasPermission(Player player, String node) {
         return permissionHandler.has(player, node);
@@ -399,13 +431,15 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
         try {
             test = Integer.parseInt(T);
         } catch (Exception e) {
-            p.sendMessage("[ShopAds] You must enter a number from 1 to 36 for the hours value");
+            p.sendMessage(ChatColor.RED + "[ShopAds] You must enter a number for time");
             test = 0;
         }
         if (test <= 0) {
+            p.sendMessage(ChatColor.RED + "[ShopAds] You must enter a number greater than zero");
             return false;
         } else {
             if (test > Integer.parseInt(pr.getProperty("maxAdRunTime"))) {
+                p.sendMessage(ChatColor.RED + "[ShopAds] You must enter a number under " + pr.getProperty("maxAdRunTime"));
                 return false;
             } else {
                 return true;
@@ -520,15 +554,14 @@ public class ShopAds extends org.bukkit.plugin.java.JavaPlugin {
     private void teleport(String name, Player player) {
         if (shopExists(name) != -1) {
             teleportToShop(shopExists(name), player);
+            player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You have been teleported to " + Shops[shopExists(name)].getName());
         }
     }
 
     public void teleportToShop(int index, Player player) {
-        float pitch = 0;
-
         Location loc = new Location(player.getWorld(), Shops[index].getLocation(0), Shops[index].getLocation(1), Shops[index].getLocation(2), Float.parseFloat(String.valueOf(Shops[index].getLocation(4))), Float.parseFloat(String.valueOf(Shops[index].getLocation(3))));
         player.teleport(loc);
-        player.sendMessage(color.GOLD + "[ShopAds]" + color.GRAY + "You have been teleported to " + Shops[index].getName());
+
     }
 
     private int shopExists(String name) {
