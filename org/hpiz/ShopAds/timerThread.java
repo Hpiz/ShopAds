@@ -53,6 +53,46 @@ class timerThread extends Thread {
             
             
             
+            if(plugin.getShopsLength()>0){
+                if (plugin.random) {
+                lastAnnouncement = Math.abs(randomGenerator.nextInt()) % plugin.getShopsLength();
+            } else {
+                if ((++lastAnnouncement) >= plugin.getShopsLength()) {
+                    lastAnnouncement = 0;
+                }
+            }
+
+            if (lastAnnouncement < plugin.getShopsLength()) {
+                
+                    plugin.announce(lastAnnouncement);
+                try {
+                    plugin.timeUpdater(lastAnnouncement);
+                } catch (FileNotFoundException ex) {
+                    Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                    Logger.getLogger(timerThread.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }   
+         
+                }
+            }
+        }
+     public void runNextItem(int z) {
+
+        if (plugin.pluginState()) {
+            lastAnnouncement=z;
+            
+                      
+                plugin.loadShops();
+                plugin.loadUsers();
+       
+            
+           
+             
+            
+            
+            
+            
             if (plugin.random) {
                 lastAnnouncement = Math.abs(randomGenerator.nextInt()) % plugin.getShopsLength();
             } else {
@@ -76,5 +116,6 @@ class timerThread extends Thread {
                 }
             }
         }
+     
     }
 
