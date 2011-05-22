@@ -42,8 +42,10 @@ class timerThread extends Thread {
         if (plugin.pluginState()) {
             
             
-                      
+                if(plugin.getShopsLength()!=0){
+                    
                 plugin.loadShops();
+                }
                 plugin.loadUsers();
        
             
@@ -64,7 +66,7 @@ class timerThread extends Thread {
 
             if (lastAnnouncement < plugin.getShopsLength()) {
                 
-                    plugin.announce(lastAnnouncement);
+                   plugin.announce(lastAnnouncement);
                 try {
                     plugin.timeUpdater(lastAnnouncement);
                 } catch (FileNotFoundException ex) {
