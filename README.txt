@@ -1,1 +1,1 @@
-Place the jar file in your servers "plugins" folder.
+Place the jar file in your servers "plugins" folder, delete old version of plugin if one exists.
